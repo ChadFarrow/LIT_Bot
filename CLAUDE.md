@@ -75,3 +75,34 @@ sleep 2 && cd /Users/chad-mini/Vibe/BoostBot && PORT=3002 npm start
 - Health check: `http://localhost:3002/health`
 - Only posts boosts ≥25 sats (filters out smaller streaming payments)
 - Waits 30 seconds to collect all splits before posting largest one
+
+## Development Workflow
+
+### Safe Development Process
+1. **Create a backup branch**: `git checkout -b backup-working-version`
+2. **Create development branch**: `git checkout -b feature-new-post-format`
+3. **Test changes locally** before deploying
+4. **Use test mode** for development (see below)
+
+### Test Mode Setup
+Create a test configuration to avoid posting to live relays during development:
+```bash
+# Set test environment variable
+export TEST_MODE=true
+
+# Start bot in test mode
+TEST_MODE=true PORT=3002 npm start
+```
+
+### Quick Rollback
+If something breaks:
+```bash
+# Stop the bot
+pkill -f helipad-webhook
+
+# Switch back to working version
+git checkout backup-working-version
+
+# Restart bot
+PORT=3002 npm start
+```

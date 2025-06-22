@@ -68,6 +68,15 @@ class NostrBot {
   }
 
   public async publishToRelays(event: ReturnType<typeof finalizeEvent>): Promise<void> {
+    // Test mode - just log what would be posted without actually posting
+    if (process.env.TEST_MODE === 'true') {
+      console.log('🧪 TEST MODE - Would post to relays:');
+      console.log('📝 Content:', event.content);
+      console.log('🏷️ Tags:', event.tags);
+      console.log('🔗 Relays:', this.relays);
+      return;
+    }
+
     const publishPromises = this.relays.map(async (relayUrl) => {
       try {
         const relay = await Relay.connect(relayUrl);
