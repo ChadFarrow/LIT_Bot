@@ -2,7 +2,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import { announceHelipadPayment } from './lib/nostr-bot.ts';
+import { announceHelipadPayment, postTestDailySummary } from './lib/nostr-bot.ts';
 
 dotenv.config();
 
@@ -50,6 +50,17 @@ app.post('/helipad-webhook', authenticate, async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('Webhook receiver is running');
+});
+
+// Test daily summary endpoint
+app.get('/test-daily-summary', async (req, res) => {
+  try {
+    await postTestDailySummary();
+    res.status(200).send('Test daily summary posted to Nostr');
+  } catch (err) {
+    console.error('❌ Error posting test daily summary:', err);
+    res.status(500).send('Error posting test daily summary');
+  }
 });
 
 const PORT = process.env.PORT || 3001;
