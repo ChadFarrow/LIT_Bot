@@ -3,6 +3,8 @@
 // For static hosting, you'll need to set up a separate server/API for bot posting
 import { finalizeEvent, nip19 } from 'nostr-tools';
 import { Relay } from 'nostr-tools/relay';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 interface FundraiserUpdateOptions {
   title: string;
@@ -226,6 +228,175 @@ export async function announceFundraiserEnded(options: FundraiserUpdateOptions &
 const boostSessions = new Map<string, { largestSplit: HelipadPaymentEvent, timeout: NodeJS.Timeout }>();
 const postedBoosts = new Set<string>();
 
+// Daily tracking for streams and boosts
+interface DailyStats {
+  date: string;
+  streamSats: number;
+  boostSats: number;
+  streamShows: Set<string>;
+  boostShows: Set<string>;
+}
+
+let dailyStats: DailyStats = {
+  date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+  streamSats: 0,
+  boostSats: 0,
+  streamShows: new Set(),
+  boostShows: new Set()
+};
+
+// Daily summary timeout
+let dailySummaryTimeout: NodeJS.Timeout | null = null;
+
+// Hourly save timeout
+let hourlySaveTimeout: NodeJS.Timeout | null = null;
+
+function scheduleHourlySave(): void {
+  if (hourlySaveTimeout) {
+    clearTimeout(hourlySaveTimeout);
+  }
+  
+  hourlySaveTimeout = setTimeout(async () => {
+    await saveDailyStats();
+    console.log(`💾 Hourly save completed`);
+    scheduleHourlySave(); // Schedule next hour
+  }, 60 * 60 * 1000); // 1 hour
+  
+  console.log(`💾 Hourly save scheduled`);
+}
+
+// File path for persisting daily stats
+const DAILY_STATS_FILE = path.join(process.cwd(), 'daily-stats.json');
+
+// Load daily stats from file
+async function loadDailyStats(): Promise<void> {
+  try {
+    const data = await fs.readFile(DAILY_STATS_FILE, 'utf-8');
+    const saved = JSON.parse(data);
+    
+    // Check if saved data is from today
+    const currentDate = new Date().toISOString().split('T')[0];
+    if (saved.date === currentDate) {
+      dailyStats = {
+        date: saved.date,
+        streamSats: saved.streamSats || 0,
+        boostSats: saved.boostSats || 0,
+        streamShows: new Set(saved.streamShows || []),
+        boostShows: new Set(saved.boostShows || [])
+      };
+      console.log(`📊 Loaded daily stats: ${dailyStats.streamSats + dailyStats.boostSats} total sats`);
+    } else {
+      console.log(`📅 New day detected, starting fresh stats`);
+    }
+  } catch (error) {
+    console.log(`📊 No previous daily stats found, starting fresh`);
+  }
+}
+
+// Save daily stats to file
+async function saveDailyStats(): Promise<void> {
+  try {
+    const dataToSave = {
+      date: dailyStats.date,
+      streamSats: dailyStats.streamSats,
+      boostSats: dailyStats.boostSats,
+      streamShows: Array.from(dailyStats.streamShows),
+      boostShows: Array.from(dailyStats.boostShows)
+    };
+    await fs.writeFile(DAILY_STATS_FILE, JSON.stringify(dataToSave, null, 2));
+  } catch (error) {
+    console.error(`❌ Failed to save daily stats:`, error);
+  }
+}
+
+async function postDailySummary(): Promise<void> {
+  const bot = createNostrBot();
+  if (!bot) return;
+
+  const streamShows = Array.from(dailyStats.streamShows);
+  const boostShows = Array.from(dailyStats.boostShows);
+
+  const content = `📊 Daily V4V Summary - ${dailyStats.date}
+
+🌊 Streamed: ${dailyStats.streamSats.toLocaleString()} sats
+📤 Boosted: ${dailyStats.boostSats.toLocaleString()} sats
+💰 Total: ${(dailyStats.streamSats + dailyStats.boostSats).toLocaleString()} sats
+
+${streamShows.length > 0 ? `🎧 Streamed to:\n${streamShows.map(show => `• ${show}`).join('\n')}\n` : ''}
+${boostShows.length > 0 ? `🚀 Boosted:\n${boostShows.map(show => `• ${show}`).join('\n')}` : ''}
+
+#V4V #Podcasting20 #PC20 #ValueStreaming #Boostagram`;
+
+  const nostrEvent = finalizeEvent({
+    kind: 1,
+    content,
+    tags: [
+      ['t', 'v4v'],
+      ['t', 'podcasting20'],
+      ['t', 'pc20'],
+      ['t', 'valuestreaming'],
+      ['t', 'boostagram'],
+      ['t', 'dailysummary'],
+    ],
+    created_at: Math.floor(Date.now() / 1000),
+  }, bot.getSecretKey());
+
+  await bot.publishToRelays(nostrEvent);
+  console.log(`📊 Posted daily summary: ${dailyStats.streamSats + dailyStats.boostSats} total sats`);
+}
+
+async function resetDailyStats(): Promise<void> {
+  dailyStats = {
+    date: new Date().toISOString().split('T')[0],
+    streamSats: 0,
+    boostSats: 0,
+    streamShows: new Set(),
+    boostShows: new Set()
+  };
+  await saveDailyStats();
+}
+
+function scheduleDailySummary(): void {
+  if (dailySummaryTimeout) {
+    clearTimeout(dailySummaryTimeout);
+  }
+
+  // Calculate time until midnight
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0); // Next midnight
+  const msUntilMidnight = midnight.getTime() - now.getTime();
+
+  dailySummaryTimeout = setTimeout(async () => {
+    await postDailySummary();
+    await resetDailyStats();
+    scheduleDailySummary(); // Schedule next day
+  }, msUntilMidnight);
+
+  console.log(`📅 Daily summary scheduled for ${midnight.toLocaleString()}`);
+}
+
+// Test function to manually post current daily summary
+export async function postTestDailySummary(): Promise<void> {
+  console.log(`📊 Posting test daily summary...`);
+  
+  // Add temporary test data to see the format
+  dailyStats.streamSats = 1250;
+  dailyStats.boostSats = 500;
+  dailyStats.streamShows.add("Lightning Thrashes");
+  dailyStats.streamShows.add("The Wait Is Over");
+  dailyStats.streamShows.add("Underwater - Single");
+  dailyStats.boostShows.add("Lightning Thrashes");
+  dailyStats.boostShows.add("Mike's Mixtape");
+  
+  console.log(`Test stats: ${dailyStats.streamSats} stream sats, ${dailyStats.boostSats} boost sats`);
+  console.log(`Test shows: ${Array.from(dailyStats.streamShows).join(', ')} | ${Array.from(dailyStats.boostShows).join(', ')}`);
+  await postDailySummary();
+  
+  // Reset to real data after test
+  await resetDailyStats();
+}
+
 export async function announceHelipadPayment(event: HelipadPaymentEvent): Promise<void> {
   const bot = createNostrBot();
   if (!bot) return;
@@ -233,11 +404,56 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   // Debug: Log all payment details to understand the data
   console.log(`🔍 Payment received - Action: ${event.action}, Amount: ${event.value_msat / 1000} sats, Total: ${event.value_msat_total / 1000} sats, Message: "${event.message || 'none'}"`);
   
-  // Action filtering already handles streams vs boosts, so no amount limit needed
+  // Load daily stats on first run
+  if (dailyStats.streamSats === 0 && dailyStats.boostSats === 0 && dailyStats.streamShows.size === 0) {
+    await loadDailyStats();
+  }
 
-  // For streaming sats, group by a wider time window and ignore total amount
-  // since streaming creates many small individual payments
-  const timeWindow = Math.floor(event.time / 60); // 60-second windows for streaming
+  // Check if we need to reset daily stats (new day)
+  const currentDate = new Date().toISOString().split('T')[0];
+  if (currentDate !== dailyStats.date) {
+    await postDailySummary(); // Post previous day's summary
+    await resetDailyStats();
+  }
+
+  // Track all payments for daily summary
+  const showName = event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless' 
+    ? event.podcast 
+    : (event.episode && event.episode.trim() && event.episode.trim().toLowerCase() !== 'nameless' ? event.episode : 'Unknown');
+
+  const satsAmount = Math.floor(event.value_msat_total / 1000);
+  const hasMessage = event.message && event.message.trim() && event.message.trim() !== '';
+  const isLargePayment = satsAmount >= 1000;
+  
+  if (event.action === 1) { // Stream
+    dailyStats.streamSats += satsAmount;
+    dailyStats.streamShows.add(showName);
+    console.log(`🌊 Added ${satsAmount} stream sats to daily total`);
+  } else if (event.action === 2) { // Boost
+    dailyStats.boostSats += satsAmount;
+    dailyStats.boostShows.add(showName);
+    console.log(`📤 Added ${satsAmount} boost sats to daily total`);
+  }
+  
+  // Auto-save for large payments or payments with messages
+  if (isLargePayment || hasMessage) {
+    await saveDailyStats();
+    console.log(`💾 Auto-saved: ${isLargePayment ? 'large payment' : 'has message'} (${satsAmount} sats)`);
+  }
+
+  // Schedule daily summary and hourly saves if not already scheduled
+  if (!dailySummaryTimeout) {
+    scheduleDailySummary();
+    scheduleHourlySave();
+  }
+
+  // Only continue with individual boost posts for action === 2
+  if (event.action !== 2) {
+    return; // Skip individual posts for streams
+  }
+
+  // Group splits by a wider time window to catch all splits from the same boost
+  const timeWindow = Math.floor(event.time / 120); // 2-minute windows to prevent split sessions
   const sessionId = `${timeWindow}-${event.sender}-${event.episode}-${event.podcast}`;
   
   console.log(`🔍 Processing payment: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats) - Session: ${sessionId}`);
