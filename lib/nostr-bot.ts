@@ -55,7 +55,7 @@ class NostrBot {
   private nsec: string;
   private relays: string[];
 
-  constructor(nsec: string, relays: string[] = ['wss://relay.damus.io', 'wss://relay.nostr.band']) {
+  constructor(nsec: string, relays: string[] = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://relay.primal.net', 'wss://7srr7chyc6vlhzpc2hl6lyungvluohzrmt76kbs4kmydhrxoakkbquad.local/', 'wss://chadf.nostr1.com/']) {
     this.nsec = nsec;
     this.relays = relays;
   }
@@ -79,18 +79,26 @@ class NostrBot {
       return;
     }
 
+    console.log(`📡 Attempting to publish to ${this.relays.length} relays...`);
+    
     const publishPromises = this.relays.map(async (relayUrl) => {
       try {
+        console.log(`🔄 Connecting to ${relayUrl}...`);
         const relay = await Relay.connect(relayUrl);
+        console.log(`📤 Publishing to ${relayUrl}...`);
         await relay.publish(event);
         relay.close();
-        console.log(`✅ Published to ${relayUrl}`);
+        console.log(`✅ Successfully published to ${relayUrl}`);
       } catch (error) {
-        console.error(`❌ Failed to publish to ${relayUrl}:`, error);
+        console.error(`❌ Failed to publish to ${relayUrl}:`, error?.message || error);
       }
     });
 
-    await Promise.allSettled(publishPromises);
+    const results = await Promise.allSettled(publishPromises);
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    
+    console.log(`📊 Publish results: ${successful} successful, ${failed} failed out of ${this.relays.length} relays`);
   }
 
   async postFundraiserCreated(options: FundraiserUpdateOptions): Promise<void> {
