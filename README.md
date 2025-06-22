@@ -16,11 +16,11 @@ This project provides a webhook receiver to connect a [Helipad](https://github.c
     ```
 
 3.  **Create Your Environment File:**
-    You must create a `.env` file in the root of the project. This file will hold your secret keys and configuration. It must contain the following variables:
+    You must create a `.env` file in the root of the project. This file will hold your secret keys and configuration. It must contain the following variables. **Do not add any other variables.**
 
     ```bash
     # Nostr Bot's private key (starts with nsec...)
-    NOSTR_BOOST_BOT_NSEC=your_new_nsec_key_here
+    NOSTR_BOOST_BOT_NSEC=your_nostr_private_key_here
 
     # The port your webhook receiver will listen on
     PORT=3001
