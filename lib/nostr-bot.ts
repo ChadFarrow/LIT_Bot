@@ -291,6 +291,22 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
   const actionText = "📤 Boost Sent!";
   const senderLabel = "👤 Sender";
 
+  // Parse TLV data to build show link
+  let showLink = '';
+  try {
+    if (event.tlv) {
+      const tlvData = JSON.parse(event.tlv);
+      const feedID = tlvData.feedID;
+      
+      // Link to show page (has all episodes + app chooser + episodes.fm button)
+      if (feedID) {
+        showLink = `https://podcastindex.org/podcast/${feedID}`;
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to parse TLV data for show link:', error);
+  }
+
   // Format the content for Nostr
   const contentParts = [
     actionText,
@@ -307,7 +323,15 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     `📻 Episode: ${event.episode || ''}`,
     `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`,
     `📱 App: ${event.app || ''}`,
-    `🕒 Time: ${new Date(event.time * 1000).toLocaleString()}`,
+    `🕒 Time: ${new Date(event.time * 1000).toLocaleString()}`
+  );
+
+  // Add show link if available
+  if (showLink) {
+    contentParts.push(`🎧 Listen: ${showLink}`);
+  }
+
+  contentParts.push(
     '',
     '#Boostagram #Podcasting20 #V4V'
   );
