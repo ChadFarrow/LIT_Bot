@@ -2,7 +2,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import { announceHelipadPayment } from '../5050/src/lib/nostr-bot.ts';
+import { announceHelipadPayment } from './lib/nostr-bot.ts';
 
 dotenv.config();
 
