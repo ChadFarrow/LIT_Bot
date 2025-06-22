@@ -213,22 +213,56 @@ export async function announceFundraiserEnded(options: FundraiserUpdateOptions &
   }
 }
 
+// A simple in-memory cache to prevent duplicate posts for the same boost
+const postedPaymentHashes = new Set<string>();
+
 export async function announceHelipadPayment(event: HelipadPaymentEvent): Promise<void> {
   const bot = createNostrBot();
   if (!bot) return;
 
+  // De-duplicate based on payment_hash for sent boosts
+  if (event.payment_info?.payment_hash) {
+    if (postedPaymentHashes.has(event.payment_info.payment_hash)) {
+      console.log(`⏭️ Duplicate boost detected (hash: ${event.payment_info.payment_hash}), skipping.`);
+      return;
+    }
+    postedPaymentHashes.add(event.payment_info.payment_hash);
+  }
+
+  // Determine if this is a received or sent boost based on action field
+  const isReceived = event.action === 2; // action 2 = boost (received)
+
+  // Only post for SENT boosts for now
+  if (isReceived) {
+    console.log('↩️ Received boost detected, skipping post as per configuration.');
+    return;
+  }
+
+  const actionText = "📤 Boost Sent!";
+  const senderLabel = "👤 Sender";
+
   // Format the content for Nostr
-  const content = `⚡️ New Boost Received!
+  const contentParts = [
+    actionText,
+    '',
+    `${senderLabel}: ${event.sender || 'Unknown'}`,
+  ];
 
-👤 Sender: ${event.sender || 'Unknown'}
-💬 Message: ${event.message || ''}
-🎧 Podcast: ${event.podcast || ''}
-📻 Episode: ${event.episode || ''}
-💸 Amount: ${(event.value_msat / 1000).toLocaleString()} sats
-📱 App: ${event.app || ''}
-🕒 Time: ${new Date(event.time * 1000).toLocaleString()}
+  if (event.message && event.message.trim()) {
+    contentParts.push(`💬 Message: ${event.message}`);
+  }
 
-#Boostagram #Podcasting20 #Lightning #Nostr`;
+  contentParts.push(
+    `🎧 Podcast: ${event.podcast || ''}`,
+    `📻 Episode: ${event.episode || ''}`,
+    `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`,
+    `📱 App: ${event.app || ''}`,
+    `🕒 Time: ${new Date(event.time * 1000).toLocaleString()}`,
+    '',
+    '#Boostagram #Podcasting20 #V4V'
+  );
+
+  const content = contentParts.join('\n');
 
   const nostrEvent = finalizeEvent({
     kind: 1,
@@ -236,7 +270,7 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     tags: [
       ['t', 'boostagram'],
       ['t', 'podcasting20'],
-      ['t', 'lightning'],
+      ['t', 'v4v'],
       ['t', 'podcast'],
     ],
     created_at: Math.floor(Date.now() / 1000),
