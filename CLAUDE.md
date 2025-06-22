@@ -140,3 +140,41 @@ When `TEST_MODE=true`:
 - ✅ Shows what would be posted (content, tags, relays)
 - ❌ Does NOT actually post to Nostr relays
 - 🧪 Logs start with "TEST MODE" indicator
+
+## Recent Enhancements Completed
+
+### Enhanced Nostr Post Features (June 2025)
+✅ **Fixed split spam** - Only posts largest split per boost session  
+✅ **Blocked streaming sats** - Filters out payments under 25 sats  
+✅ **Added show links** - Reliable Podcast Index links with app chooser  
+✅ **Safe development** - Test mode + git branches for future changes  
+✅ **Clean posts** - Professional formatting with all relevant info  
+
+### Current Post Format
+```
+📤 Boost Sent!
+
+👤 Sender: ChadF
+💬 Message: [boost message if present]
+🎧 Podcast: Lightning Thrashes
+📻 Episode: 94 - Lightning Thrashes
+💸 Amount: 333 sats
+📱 App: CurioCaster
+🕒 Time: [timestamp]
+🎧 Listen: https://podcastindex.org/podcast/6602332
+
+#Boostagram #Podcasting20 #V4V
+```
+
+### Successful Git Workflow Used
+1. Created `backup-working-version` branch (pushed to GitHub)
+2. Created `improve-nostr-posts` development branch
+3. Used `TEST_MODE=true` for safe testing
+4. Committed final working version
+
+### Key Technical Details
+- **Session grouping**: 60-second time windows by sender/episode/podcast
+- **Split detection**: Uses `value_msat` vs `value_msat_total` to find largest
+- **Link building**: Extracts `feedID` from TLV data for Podcast Index URLs
+- **Amount filtering**: `value_msat_total < 25000` blocks streaming sats
+- **Action filtering**: Only processes `action === 2` (boosts)
