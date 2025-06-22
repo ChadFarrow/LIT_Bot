@@ -287,6 +287,25 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   }, 30000);
 }
 
+// Mapping of podcast app names to their download/website URLs and display names
+const podcastAppLinks: Record<string, { url: string; displayName?: string }> = {
+  'CurioCaster': { url: 'https://curiocaster.com' },
+  'Fountain': { url: 'https://fountain.fm' },
+  'Podverse': { url: 'https://podverse.fm' },
+  'Castamatic': { url: 'https://castamatic.com' },
+  'PodcastGuru': { url: 'https://podcastguru.io' },
+  'Breez': { url: 'https://breez.technology' },
+  'Sphinx': { url: 'https://sphinx.chat' },
+  'LNBeats': { url: 'https://lnbeats.com' },
+  'LN Beats': { url: 'https://lnbeats.com', displayName: 'LNBeats' },  // Display without space
+  'Satoshis.stream': { url: 'https://satoshis.stream' },
+  'Podstation': { url: 'https://podstation.github.io' },
+  'Alby': { url: 'https://getalby.com' },
+  'TrueFans': { url: 'https://truefans.fm' },
+  'Buzzsprout': { url: 'https://buzzsprout.com' },
+  // Add more as needed
+};
+
 async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<void> {
   const actionText = "📤 Boost Sent!";
   const senderLabel = "👤 Sender";
@@ -318,11 +337,24 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     contentParts.push(`💬 Message: ${event.message}`);
   }
 
+  // Build app info with link if available
+  const appName = event.app || '';
+  const appConfig = podcastAppLinks[appName];
+  const appInfo = appConfig 
+    ? `📱 App: ${appConfig.url}`
+    : `📱 App: ${appName}`;
+
+  // Add podcast and episode info only if they exist
+  if (event.podcast && event.podcast.trim()) {
+    contentParts.push(`🎧 Podcast: ${event.podcast}`);
+  }
+  if (event.episode && event.episode.trim()) {
+    contentParts.push(`📻 Episode: ${event.episode}`);
+  }
+
   contentParts.push(
-    `🎧 Podcast: ${event.podcast || ''}`,
-    `📻 Episode: ${event.episode || ''}`,
     `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`,
-    `📱 App: ${event.app || ''}`,
+    appInfo,
     `🕒 Time: ${new Date(event.time * 1000).toLocaleString()}`
   );
 
