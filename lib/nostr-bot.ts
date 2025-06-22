@@ -97,13 +97,13 @@ ${options.description || ''}
 
 ${options.url ? `Join: ${options.url}` : ''}
 
-#PodRaffle #Bitcoin #Lightning #Nostr #Podcast`;
+#NostrBoostBot #Bitcoin #Lightning #Nostr #Podcast`;
 
     const event = finalizeEvent({
       kind: 1,
       content,
       tags: [
-        ['t', 'podraffle'],
+        ['t', 'nostrboostbot'],
         ['t', 'bitcoin'],
         ['t', 'lightning'],
         ['t', 'podcast'],
@@ -130,13 +130,13 @@ Congratulations to the winner! 🎉
 
 ${options.url ? `View: ${options.url}` : ''}
 
-#PodRaffle #Bitcoin #Lightning #Winner #Podcast`;
+#NostrBoostBot #Bitcoin #Lightning #Winner #Podcast`;
 
     const event = finalizeEvent({
       kind: 1,
       content,
       tags: [
-        ['t', 'podraffle'],
+        ['t', 'nostrboostbot'],
         ['t', 'bitcoin'],
         ['t', 'lightning'],
         ['t', 'podcast'],
@@ -160,13 +160,13 @@ ${options.url ? `View: ${options.url}` : ''}
 
 ${options.url ? `View: ${options.url}` : ''}
 
-#PodRaffle #Bitcoin #Lightning #Podcast`;
+#NostrBoostBot #Bitcoin #Lightning #Podcast`;
 
     const event = finalizeEvent({
       kind: 1,
       content,
       tags: [
-        ['t', 'podraffle'],
+        ['t', 'nostrboostbot'],
         ['t', 'bitcoin'],
         ['t', 'lightning'],
         ['t', 'podcast'],
@@ -181,10 +181,10 @@ ${options.url ? `View: ${options.url}` : ''}
 
 // Server-side only function to get bot instance
 export function createNostrBot(): NostrBot | null {
-  const botNsec = process.env.PODRAFFLE_BOT_NSEC;
+  const botNsec = process.env.NOSTR_BOOST_BOT_NSEC;
   
   if (!botNsec) {
-    console.warn('PODRAFFLE_BOT_NSEC environment variable not set');
+    console.warn('NOSTR_BOOST_BOT_NSEC environment variable not set');
     return null;
   }
 

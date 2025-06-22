@@ -20,7 +20,7 @@ This project provides a webhook receiver to connect a [Helipad](https://github.c
 
     ```bash
     # Nostr Bot's private key (starts with nsec...)
-    PODRAFFLE_BOT_NSEC=your_new_nsec_key_here
+    NOSTR_BOOST_BOT_NSEC=your_new_nsec_key_here
 
     # The port your webhook receiver will listen on
     PORT=3001
