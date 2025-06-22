@@ -39,7 +39,6 @@ app.post('/helipad-webhook', authenticate, async (req, res) => {
     console.log('Received Helipad webhook:', JSON.stringify(event, null, 2));
     
     await announceHelipadPayment(event);
-    console.log('✅ Successfully posted to Nostr');
     
     res.status(200).send('OK');
   } catch (err) {

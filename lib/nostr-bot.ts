@@ -213,31 +213,72 @@ export async function announceFundraiserEnded(options: FundraiserUpdateOptions &
   }
 }
 
-// A simple in-memory cache to prevent duplicate posts for the same boost
-const postedPaymentHashes = new Set<string>();
+// Cache to track boost sessions and find the largest split
+const boostSessions = new Map<string, { largestSplit: HelipadPaymentEvent, timeout: NodeJS.Timeout }>();
+const postedBoosts = new Set<string>();
 
 export async function announceHelipadPayment(event: HelipadPaymentEvent): Promise<void> {
   const bot = createNostrBot();
   if (!bot) return;
 
-  // De-duplicate based on payment_hash for sent boosts
-  if (event.payment_info?.payment_hash) {
-    if (postedPaymentHashes.has(event.payment_info.payment_hash)) {
-      console.log(`⏭️ Duplicate boost detected (hash: ${event.payment_info.payment_hash}), skipping.`);
-      return;
-    }
-    postedPaymentHashes.add(event.payment_info.payment_hash);
-  }
-
-  // Determine if this is a received or sent boost based on action field
-  const isReceived = event.action === 2; // action 2 = boost (received)
-
-  // Only post for SENT boosts for now
-  if (isReceived) {
-    console.log('↩️ Received boost detected, skipping post as per configuration.');
+  // Debug: Log all payment details to understand the data
+  console.log(`🔍 Payment received - Action: ${event.action}, Amount: ${event.value_msat / 1000} sats, Total: ${event.value_msat_total / 1000} sats, Message: "${event.message || 'none'}"`);
+  
+  // Skip small payments (likely streaming) - under 25 sats
+  if (event.value_msat_total < 25000) {
+    console.log(`🌊 Small payment detected (${event.value_msat_total / 1000} sats total), likely streaming - skipping.`);
     return;
   }
 
+  // For streaming sats, group by a wider time window and ignore total amount
+  // since streaming creates many small individual payments
+  const timeWindow = Math.floor(event.time / 60); // 60-second windows for streaming
+  const sessionId = `${timeWindow}-${event.sender}-${event.episode}-${event.podcast}`;
+  
+  console.log(`🔍 Processing payment: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats) - Session: ${sessionId}`);
+  
+  // Check if we already posted for this boost session
+  if (postedBoosts.has(sessionId)) {
+    console.log(`⏭️ Already posted for boost session ${sessionId}, skipping.`);
+    return;
+  }
+
+  // Get or create session entry
+  const existingSession = boostSessions.get(sessionId);
+  
+  if (existingSession) {
+    // Clear the previous timeout
+    clearTimeout(existingSession.timeout);
+    
+    // Update if this split is larger
+    if (event.value_msat > existingSession.largestSplit.value_msat) {
+      existingSession.largestSplit = event;
+      console.log(`📊 Updated largest split for session ${sessionId}: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats)`);
+    } else {
+      console.log(`📊 Keeping existing largest split for session ${sessionId}: ${existingSession.largestSplit.value_msat / 1000} sats`);
+    }
+  } else {
+    // First split for this session
+    boostSessions.set(sessionId, { largestSplit: event, timeout: setTimeout(() => {}, 0) });
+    console.log(`🆕 New boost session ${sessionId}: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats)`);
+  }
+
+  // Set a timeout to post the largest payment after 30 seconds of no new payments
+  // Longer delay for streaming to collect more payments in the session
+  const session = boostSessions.get(sessionId)!;
+  session.timeout = setTimeout(async () => {
+    console.log(`🚀 Posting largest payment for session ${sessionId}: ${session.largestSplit.value_msat / 1000} sats (total: ${session.largestSplit.value_msat_total / 1000} sats)`);
+    
+    // Mark this session as posted
+    postedBoosts.add(sessionId);
+    boostSessions.delete(sessionId);
+    
+    // Post the largest payment from this session
+    await postBoostToNostr(session.largestSplit, bot);
+  }, 30000);
+}
+
+async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<void> {
   const actionText = "📤 Boost Sent!";
   const senderLabel = "👤 Sender";
 
