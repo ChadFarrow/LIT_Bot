@@ -233,11 +233,7 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   // Debug: Log all payment details to understand the data
   console.log(`🔍 Payment received - Action: ${event.action}, Amount: ${event.value_msat / 1000} sats, Total: ${event.value_msat_total / 1000} sats, Message: "${event.message || 'none'}"`);
   
-  // Skip small payments (likely streaming) - under 25 sats
-  if (event.value_msat_total < 25000) {
-    console.log(`🌊 Small payment detected (${event.value_msat_total / 1000} sats total), likely streaming - skipping.`);
-    return;
-  }
+  // Action filtering already handles streams vs boosts, so no amount limit needed
 
   // For streaming sats, group by a wider time window and ignore total amount
   // since streaming creates many small individual payments
@@ -344,18 +340,17 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     ? `📱 App: ${appConfig.url}`
     : `📱 App: ${appName}`;
 
-  // Add podcast and episode info only if they exist
-  if (event.podcast && event.podcast.trim()) {
+  // Add podcast and episode info only if they exist and aren't placeholder values
+  if (event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless') {
     contentParts.push(`🎧 Podcast: ${event.podcast}`);
   }
-  if (event.episode && event.episode.trim()) {
+  if (event.episode && event.episode.trim() && event.episode.trim().toLowerCase() !== 'nameless') {
     contentParts.push(`📻 Episode: ${event.episode}`);
   }
 
   contentParts.push(
     `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`,
-    appInfo,
-    `🕒 Time: ${new Date(event.time * 1000).toLocaleString()}`
+    appInfo
   );
 
   // Add show link if available
@@ -365,7 +360,7 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
 
   contentParts.push(
     '',
-    '#Boostagram #Podcasting20 #V4V'
+    '#Boostagram #Podcasting20 #PC20 #V4V'
   );
 
   const content = contentParts.join('\n');
@@ -376,6 +371,7 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     tags: [
       ['t', 'boostagram'],
       ['t', 'podcasting20'],
+      ['t', 'pc20'],
       ['t', 'v4v'],
       ['t', 'podcast'],
     ],
