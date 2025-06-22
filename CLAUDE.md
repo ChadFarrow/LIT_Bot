@@ -106,3 +106,37 @@ git checkout backup-working-version
 # Restart bot
 PORT=3002 npm start
 ```
+
+### Starting Development Session
+```bash
+# Stop any running bot
+pkill -f helipad-webhook
+
+# Wait a moment
+sleep 2
+
+# Start in test mode on development branch
+TEST_MODE=true PORT=3002 npm start
+```
+
+### Port Already in Use Fix
+If you get "EADDRINUSE" error:
+```bash
+# Kill all helipad processes
+pkill -f helipad-webhook
+
+# Wait and try again
+sleep 2 && TEST_MODE=true PORT=3002 npm start
+```
+
+### Current Branch Status
+- **backup-working-version**: Safe working copy pushed to GitHub
+- **improve-nostr-posts**: Development branch for experimenting
+- **main**: Original branch
+
+### Test Mode Features
+When `TEST_MODE=true`:
+- ✅ Processes webhooks normally
+- ✅ Shows what would be posted (content, tags, relays)
+- ❌ Does NOT actually post to Nostr relays
+- 🧪 Logs start with "TEST MODE" indicator
