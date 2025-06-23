@@ -5,6 +5,7 @@ import { finalizeEvent, nip19 } from 'nostr-tools';
 import { Relay } from 'nostr-tools/relay';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger } from './logger.js';
 
 interface FundraiserUpdateOptions {
   title: string;
@@ -72,25 +73,26 @@ class NostrBot {
   public async publishToRelays(event: ReturnType<typeof finalizeEvent>): Promise<void> {
     // Test mode - just log what would be posted without actually posting
     if (process.env.TEST_MODE === 'true') {
-      console.log('🧪 TEST MODE - Would post to relays:');
-      console.log('📝 Content:', event.content);
-      console.log('🏷️ Tags:', event.tags);
-      console.log('🔗 Relays:', this.relays);
+      logger.info('TEST MODE - Would post to relays', { 
+        content: event.content,
+        tags: event.tags,
+        relays: this.relays 
+      });
       return;
     }
 
-    console.log(`📡 Attempting to publish to ${this.relays.length} relays...`);
+    logger.info(`Attempting to publish to ${this.relays.length} relays`, { content: event.content });
     
     const publishPromises = this.relays.map(async (relayUrl) => {
       try {
-        console.log(`🔄 Connecting to ${relayUrl}...`);
+        logger.debug(`Connecting to ${relayUrl}`);
         const relay = await Relay.connect(relayUrl);
-        console.log(`📤 Publishing to ${relayUrl}...`);
+        logger.debug(`Publishing to ${relayUrl}`);
         await relay.publish(event);
         relay.close();
-        console.log(`✅ Successfully published to ${relayUrl}`);
+        logger.info(`Successfully published to ${relayUrl}`);
       } catch (error) {
-        console.error(`❌ Failed to publish to ${relayUrl}:`, error?.message || error);
+        logger.error(`Failed to publish to ${relayUrl}`, { error: error?.message || error });
       }
     });
 
@@ -98,7 +100,7 @@ class NostrBot {
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
     
-    console.log(`📊 Publish results: ${successful} successful, ${failed} failed out of ${this.relays.length} relays`);
+    logger.info(`Publish results: ${successful} successful, ${failed} failed out of ${this.relays.length} relays`);
   }
 
   async postFundraiserCreated(options: FundraiserUpdateOptions): Promise<void> {
@@ -633,7 +635,15 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   if (!bot) return;
 
   // Debug: Log all payment details to understand the data
-  console.log(`🔍 Payment received - Action: ${event.action}, Amount: ${event.value_msat / 1000} sats, Total: ${event.value_msat_total / 1000} sats, Message: "${event.message || 'none'}"`);
+  logger.info(`Payment received`, { 
+    action: event.action, 
+    amount: event.value_msat / 1000, 
+    total: event.value_msat_total / 1000, 
+    message: event.message || 'none',
+    sender: event.sender,
+    podcast: event.podcast,
+    episode: event.episode
+  });
   
   // Load daily and weekly stats on first run
   if (dailyStats.streamSats === 0 && dailyStats.boostSats === 0 && dailyStats.streamShows.size === 0) {
@@ -669,20 +679,20 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     dailyStats.streamShows.add(showName);
     weeklyStats.streamSats += satsAmount;
     weeklyStats.streamShows.add(showName);
-    console.log(`🌊 Added ${satsAmount} stream sats to daily/weekly totals`);
+    logger.info(`Added ${satsAmount} stream sats to daily/weekly totals`);
   } else if (event.action === 2) { // Boost
     dailyStats.boostSats += satsAmount;
     dailyStats.boostShows.add(showName);
     weeklyStats.boostSats += satsAmount;
     weeklyStats.boostShows.add(showName);
-    console.log(`📤 Added ${satsAmount} boost sats to daily/weekly totals`);
+    logger.info(`Added ${satsAmount} boost sats to daily/weekly totals`);
   }
   
   // Auto-save for large payments or payments with messages
   if (isLargePayment || hasMessage) {
     await saveDailyStats();
     await saveWeeklyStats();
-    console.log(`💾 Auto-saved: ${isLargePayment ? 'large payment' : 'has message'} (${satsAmount} sats)`);
+    logger.info(`Auto-saved: ${isLargePayment ? 'large payment' : 'has message'} (${satsAmount} sats)`);
   }
 
   // Schedule daily/weekly summaries and hourly saves if not already scheduled
@@ -701,11 +711,15 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   const timeWindow = Math.floor(event.time / 120); // 2-minute windows to prevent split sessions
   const sessionId = `${timeWindow}-${event.sender}-${event.episode}-${event.podcast}`;
   
-  console.log(`🔍 Processing payment: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats) - Session: ${sessionId}`);
+  logger.info(`Processing payment`, { 
+    amount: event.value_msat / 1000, 
+    total: event.value_msat_total / 1000, 
+    session: sessionId 
+  });
   
   // Check if we already posted for this boost session
   if (postedBoosts.has(sessionId)) {
-    console.log(`⏭️ Already posted for boost session ${sessionId}, skipping.`);
+    logger.info(`Already posted for boost session ${sessionId}, skipping`);
     return;
   }
 
@@ -719,21 +733,32 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     // Update if this split is larger
     if (event.value_msat > existingSession.largestSplit.value_msat) {
       existingSession.largestSplit = event;
-      console.log(`📊 Updated largest split for session ${sessionId}: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats)`);
+      logger.info(`Updated largest split for session ${sessionId}`, { 
+        amount: event.value_msat / 1000, 
+        total: event.value_msat_total / 1000 
+      });
     } else {
-      console.log(`📊 Keeping existing largest split for session ${sessionId}: ${existingSession.largestSplit.value_msat / 1000} sats`);
+      logger.info(`Keeping existing largest split for session ${sessionId}`, { 
+        amount: existingSession.largestSplit.value_msat / 1000 
+      });
     }
   } else {
     // First split for this session
     boostSessions.set(sessionId, { largestSplit: event, timeout: setTimeout(() => {}, 0) });
-    console.log(`🆕 New boost session ${sessionId}: ${event.value_msat / 1000} sats (total: ${event.value_msat_total / 1000} sats)`);
+    logger.info(`New boost session ${sessionId}`, { 
+      amount: event.value_msat / 1000, 
+      total: event.value_msat_total / 1000 
+    });
   }
 
   // Set a timeout to post the largest payment after 30 seconds of no new payments
   // Longer delay for streaming to collect more payments in the session
   const session = boostSessions.get(sessionId)!;
   session.timeout = setTimeout(async () => {
-    console.log(`🚀 Posting largest payment for session ${sessionId}: ${session.largestSplit.value_msat / 1000} sats (total: ${session.largestSplit.value_msat_total / 1000} sats)`);
+    logger.info(`Posting largest payment for session ${sessionId}`, { 
+      amount: session.largestSplit.value_msat / 1000, 
+      total: session.largestSplit.value_msat_total / 1000 
+    });
     
     // Mark this session as posted
     postedBoosts.add(sessionId);

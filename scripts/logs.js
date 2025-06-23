@@ -1,107 +1,167 @@
 #!/usr/bin/env node
 
 import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import fs from 'fs';
+import path from 'path';
 
-function getProcessInfo() {
+function checkIfProcessRunning(processName) {
   try {
-    const output = execSync('ps aux | grep -E "(helipad-webhook|tsx.*helipad)" | grep -v grep', { encoding: 'utf8' });
-    return output.trim().split('\n').filter(line => line.trim());
+    const result = execSync(`pgrep -f "${processName}"`, { encoding: 'utf8' });
+    return result.trim().split('\n').filter(pid => pid.trim());
   } catch (error) {
     return [];
   }
 }
 
-function getSystemLogs() {
+function getProcessInfo(pids) {
+  const processes = [];
+  
+  for (const pid of pids) {
+    try {
+      const psResult = execSync(`ps -p ${pid} -o pid,pcpu,pmem,etime,command --no-headers`, { encoding: 'utf8' });
+      const parts = psResult.trim().split(/\s+/);
+      
+      if (parts.length >= 5) {
+        processes.push({
+          pid: parts[0],
+          cpu: parts[1],
+          memory: parts[2],
+          time: parts[3],
+          command: parts.slice(4).join(' ')
+        });
+      }
+    } catch (error) {
+      // Process might have ended
+    }
+  }
+  
+  return processes;
+}
+
+function getNetworkConnections(port) {
   try {
-    // Get recent system logs that might be related to our process
-    const output = execSync('log show --predicate "process == \"node\" OR process == \"tsx\"" --last 1h --style compact', { encoding: 'utf8' });
-    return output.trim().split('\n').slice(-20); // Last 20 lines
+    const result = execSync(`lsof -i :${port}`, { encoding: 'utf8' });
+    const lines = result.trim().split('\n').slice(1); // Skip header
+    
+    return lines.map(line => {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 9) {
+        return `${parts[0]} (PID: ${parts[1]}) - ${parts[8]}`;
+      }
+      return line;
+    });
   } catch (error) {
     return [];
   }
 }
 
-function getNetworkConnections() {
+function getRecentLogs() {
+  const logFile = 'boostbot.log';
+  
+  if (!fs.existsSync(logFile)) {
+    return [];
+  }
+  
   try {
-    const output = execSync('lsof -i :3001', { encoding: 'utf8' });
-    return output.trim().split('\n');
+    const content = fs.readFileSync(logFile, 'utf8');
+    const lines = content.trim().split('\n').filter(line => line.trim());
+    
+    // Get last 20 log entries
+    const recentLines = lines.slice(-20);
+    
+    return recentLines.map(line => {
+      try {
+        const logEntry = JSON.parse(line);
+        return {
+          timestamp: logEntry.timestamp,
+          level: logEntry.level,
+          message: logEntry.message,
+          data: logEntry.data
+        };
+      } catch {
+        return { message: line, timestamp: new Date().toISOString() };
+      }
+    });
   } catch (error) {
     return [];
   }
+}
+
+function formatLogEntry(entry) {
+  const time = new Date(entry.timestamp).toLocaleTimeString();
+  const level = entry.level?.toUpperCase() || 'INFO';
+  const message = entry.message || entry;
+  
+  let formatted = `[${time}] ${level}: ${message}`;
+  
+  if (entry.data) {
+    if (typeof entry.data === 'object') {
+      formatted += ` ${JSON.stringify(entry.data)}`;
+    } else {
+      formatted += ` ${entry.data}`;
+    }
+  }
+  
+  return formatted;
 }
 
 function main() {
   console.log('📋 BoostBot Logs & Information\n');
   
   // Check if bot is running
-  const processes = getProcessInfo();
+  const pids = checkIfProcessRunning('helipad-webhook');
+  const isRunning = pids.length > 0;
   
-  if (processes.length === 0) {
-    console.log('❌ BoostBot is not running');
-    console.log('💡 Start it with: npm start');
-    return;
-  }
-  
-  console.log('✅ BoostBot is running\n');
-  
-  // Show process information
-  console.log('🔍 Process Information:');
-  processes.forEach((process, index) => {
-    const parts = process.split(/\s+/);
-    const pid = parts[1];
-    const cpu = parts[2];
-    const mem = parts[3];
-    const time = parts[8];
+  if (isRunning) {
+    console.log('✅ BoostBot is running\n');
     
-    console.log(`  Process ${index + 1}:`);
-    console.log(`    PID: ${pid}`);
-    console.log(`    CPU: ${cpu}%`);
-    console.log(`    Memory: ${mem}%`);
-    console.log(`    Runtime: ${time}`);
+    const processes = getProcessInfo(pids);
+    console.log('🔍 Process Information:');
+    processes.forEach((proc, index) => {
+      console.log(`  Process ${index + 1}:`);
+      console.log(`    PID: ${proc.pid}`);
+      console.log(`    CPU: ${proc.cpu}%`);
+      console.log(`    Memory: ${proc.memory}%`);
+      console.log(`    Runtime: ${proc.time}`);
+    });
     console.log('');
-  });
-  
-  // Show network connections
-  console.log('🌐 Network Connections (Port 3001):');
-  const connections = getNetworkConnections();
-  if (connections.length > 1) { // Skip header
-    connections.slice(1).forEach(conn => {
-      const parts = conn.split(/\s+/);
-      if (parts.length >= 9) {
-        console.log(`  ${parts[0]} (PID: ${parts[1]}) - ${parts[8]}`);
-      }
-    });
+    
+    // Check network connections
+    const connections = getNetworkConnections(3333); // Updated port
+    if (connections.length > 0) {
+      console.log('🌐 Network Connections (Port 3333):');
+      connections.forEach(conn => console.log(`  ${conn}`));
+      console.log('');
+    }
   } else {
-    console.log('  No active connections found');
+    console.log('❌ BoostBot is not running\n');
   }
-  console.log('');
   
-  // Show recent system logs
-  console.log('📝 Recent System Logs (last hour):');
-  const systemLogs = getSystemLogs();
-  if (systemLogs.length > 0) {
-    systemLogs.forEach(log => {
-      if (log.trim()) {
-        console.log(`  ${log}`);
-      }
+  // Show recent logs
+  const recentLogs = getRecentLogs();
+  if (recentLogs.length > 0) {
+    console.log('📝 Recent Activity (last 20 entries):');
+    recentLogs.forEach(entry => {
+      console.log(`  ${formatLogEntry(entry)}`);
     });
+    console.log('');
   } else {
-    console.log('  No recent system logs found');
+    console.log('📝 No recent activity found');
+    console.log('');
   }
-  console.log('');
   
-  // Show health check
-  console.log('🏥 Health Check:');
+  // Health check
   try {
-    const response = execSync('curl -s http://localhost:3001/health', { encoding: 'utf8' });
-    console.log(`  ✅ Health endpoint: ${response.trim()}`);
+    const healthResult = execSync('curl -s http://localhost:3333/health', { encoding: 'utf8' });
+    console.log('🏥 Health Check:');
+    console.log(`  ✅ Health endpoint: ${healthResult.trim()}`);
   } catch (error) {
+    console.log('🏥 Health Check:');
     console.log('  ❌ Health endpoint not responding');
   }
   console.log('');
   
-  // Show available endpoints
+  // Available endpoints
   console.log('🔗 Available Endpoints:');
   console.log('  📡 POST /helipad-webhook - Main webhook endpoint');
   console.log('  💚 GET  /health - Health check');
@@ -113,7 +173,7 @@ function main() {
   console.log('  • Use "npm run status" for a quick status check');
   console.log('  • Use "npm run restart" to restart the bot');
   console.log('  • Check the terminal where you started the bot for live logs');
-  console.log('  • The bot logs all webhook events and Nostr posts');
+  console.log('  • The bot logs all webhook events and Nostr posts to boostbot.log');
 }
 
 main(); 

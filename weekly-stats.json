@@ -1,8 +1,14 @@
 {
   "weekStart": "2025-06-17",
   "streamSats": 0,
-  "boostSats": 0,
+  "boostSats": 96,
   "streamShows": [],
-  "boostShows": [],
+  "boostShows": [
+    "Test Podcast",
+    "Unknown",
+    "Breathe EP",
+    "Test Podcast 2",
+    "Final Test Podcast"
+  ],
   "dailyBreakdown": []
 }

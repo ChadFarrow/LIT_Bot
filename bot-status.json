@@ -1,11 +1,11 @@
 {
-  "timestamp": "2025-06-23T01:36:26.484Z",
+  "timestamp": "2025-06-23T02:12:24.342Z",
   "isRunning": true,
-  "processCount": 2,
+  "processCount": 4,
   "health": {
     "statusCode": 200,
     "body": "Webhook receiver is running",
-    "timestamp": "2025-06-23T01:36:26.484Z"
+    "timestamp": "2025-06-23T02:12:24.342Z"
   },
-  "uptime": "8:19PM"
+  "uptime": "10:10PM"
 }

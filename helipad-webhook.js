@@ -3,6 +3,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import { announceHelipadPayment, postTestDailySummary, postTestWeeklySummary } from './lib/nostr-bot.ts';
+import { logger } from './lib/logger.js';
 
 dotenv.config();
 
@@ -20,13 +21,13 @@ const authenticate = (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.warn('⚠️ Missing or invalid Authorization header');
+    logger.warn('Missing or invalid Authorization header');
     return res.status(401).send('Unauthorized: Missing or invalid token');
   }
 
   const token = authHeader.substring(7); // Remove 'Bearer '
   if (token !== AUTH_TOKEN) {
-    console.warn('🚨 Invalid token received');
+    logger.warn('Invalid token received');
     return res.status(403).send('Forbidden: Invalid token');
   }
 
@@ -36,13 +37,13 @@ const authenticate = (req, res, next) => {
 app.post('/helipad-webhook', authenticate, async (req, res) => {
   try {
     const event = req.body;
-    console.log('Received Helipad webhook:', JSON.stringify(event, null, 2));
+    logger.info('Received Helipad webhook', { event });
     
     await announceHelipadPayment(event);
     
     res.status(200).send('OK');
   } catch (err) {
-    console.error('❌ Error posting to Nostr:', err);
+    logger.error('Error posting to Nostr', { error: err.message, stack: err.stack });
     res.status(500).send('Error');
   }
 });
@@ -55,10 +56,11 @@ app.get('/health', (req, res) => {
 // Test daily summary endpoint
 app.get('/test-daily-summary', async (req, res) => {
   try {
+    logger.info('Test daily summary requested');
     await postTestDailySummary();
     res.status(200).send('Test daily summary posted to Nostr');
   } catch (err) {
-    console.error('❌ Error posting test daily summary:', err);
+    logger.error('Error posting test daily summary', { error: err.message, stack: err.stack });
     res.status(500).send('Error posting test daily summary');
   }
 });
@@ -66,17 +68,18 @@ app.get('/test-daily-summary', async (req, res) => {
 // Test weekly summary endpoint
 app.get('/test-weekly-summary', async (req, res) => {
   try {
+    logger.info('Test weekly summary requested');
     await postTestWeeklySummary();
     res.status(200).send('Test weekly summary posted to Nostr');
   } catch (err) {
-    console.error('❌ Error posting test weekly summary:', err);
+    logger.error('Error posting test weekly summary', { error: err.message, stack: err.stack });
     res.status(500).send('Error posting test weekly summary');
   }
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Helipad webhook receiver listening on port ${PORT}`);
-  console.log(`📡 Webhook URL: http://localhost:${PORT}/helipad-webhook`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
+  logger.info(`Helipad webhook receiver started`, { port: PORT });
+  logger.info(`Webhook URL: http://localhost:${PORT}/helipad-webhook`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
 }); 

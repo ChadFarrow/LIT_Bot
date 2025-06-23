@@ -1,10 +1,15 @@
 {
   "date": "2025-06-23",
   "streamSats": 0,
-  "boostSats": 614,
+  "boostSats": 710,
   "streamShows": [],
   "boostShows": [
     "Bowl After Bowl",
-    "The Heycitizen Experience"
+    "The Heycitizen Experience",
+    "Test Podcast",
+    "Unknown",
+    "Breathe EP",
+    "Test Podcast 2",
+    "Final Test Podcast"
   ]
 }
