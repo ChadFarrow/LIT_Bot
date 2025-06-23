@@ -854,6 +854,69 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   await saveBoostSessions();
 }
 
+// Mapping of show names to npubs for automatic tagging
+const showToNpubMap: Record<string, string[]> = {
+  // Show name -> array of npubs to tag
+  'Lightning Thrashes': [
+    'npub15z2javq62eh2xpms7yew0uzqsk4dr7t3q3dq4903uuxdyw2ca3kstx6q95', // sir libre
+  ],
+  'bitpunk.fm unwound': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  'bitpunk_fm radio': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  'bitpunk_fm live': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  'poetry on tape': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  'Sats and Sounds': [
+    // Add show hosts/creators here
+  ],
+  'Ungovernable Misfits': [
+    'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpssa8jg8', // Max
+  ],
+  'UpBEATS': [
+    'npub1nnkhv7scg4zxr9t6sgukyxn923ed6485ud8m7a3lurr4qd4lhv7qhrp49m', // UpBEATs
+  ],
+  'No Solutions': [
+    'npub1dergggklka99wwrs92yz8wdjs952h2ux2ha2ed598ngwu9w7a6fsh9xzpc', // Gigi
+  ],
+  'Into The Doerfel-Verse': [
+    'npub14c7ksq2wln0s9nftjlr0wv2vqpg5xzvw7jezl3whczc0ff2y97eqerl5l2', // The Doerfels
+  ],
+  "Mike's Mix Tape": [
+    'npub1uqwyafrvsf9z8tyn8gtk40au72znradyla29852uvmdl6lnpz8nsyz43la', // Mike Neumann
+  ],
+  'Homegrown Hits': [
+    'npub19ha7tju4teqp3dmwv4p28wrcy9zd6h6hxkg5mwvjrlfycweazpkse2q0fa', // DuhLaurien
+    'npub1ujt5f2qj0nave2m9t0s8jxlwufn8msc0hf62zlql0rd9247yuzwqtzmsud', // MaryKateUltra
+  ],
+  'Bowl After Bowl': [
+    'npub1yvscx9vrmpcmwcmydrm8lauqdpngum4ne8xmkgc2d4rcaxrx7tkswdwzdu', // Sir Spencer
+    'npub19ha7tju4teqp3dmwv4p28wrcy9zd6h6hxkg5mwvjrlfycweazpkse2q0fa', // DuhLaurien
+  ],
+  "It's A Mood": [
+    'npub1uqwyafrvsf9z8tyn8gtk40au72znradyla29852uvmdl6lnpz8nsyz43la', // Mike Neumann
+  ],
+  'Spectral Hiding': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  'Behind the Sch3m3s': [
+    'npub1scsqgzjfst9czlqmxf332thu54h2tx6ssnyk9wtapme0jf2w9e6qhuekhy', // boobury
+    'npub1g5w8td47hlh5guqp53235r0dgpqhpxmjn7nj2tmsk94r0yp9ehksn7llc8', // Lavish
+  ],
+  'Thunder Road Media': [
+    'npub1scsqgzjfst9czlqmxf332thu54h2tx6ssnyk9wtapme0jf2w9e6qhuekhy', // boobury
+  ],
+  'Radio bitpunk.fm': [
+    'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
+  ],
+  // Add more shows and their associated npubs
+};
+
 // Mapping of names to npubs for auto-tagging in boost messages
 const nameToNpubMap: Record<string, string> = {
   // Add display names for people you want to auto-tag in boosts
@@ -878,6 +941,7 @@ const nameToNpubMap: Record<string, string> = {
   'cbrooklyn': 'npub1lt0pv5fpfa0n8uuxpxa8fzc7nv3he0jp7tnzy9zu7rur69ejr3nqu03txv',
   'boolysteed': 'npub1scsqgzjfst9czlqmxf332thu54h2tx6ssnyk9wtapme0jf2w9e6qhuekhy',
   'marykateultra': 'npub1ujt5f2qj0nave2m9t0s8jxlwufn8msc0hf62zlql0rd9247yuzwqtzmsud',
+  'lavish': 'npub1g5w8td47hlh5guqp53235r0dgpqhpxmjn7nj2tmsk94r0yp9ehksn7llc8',
   'upbeats': 'npub1nnkhv7scg4zxr9t6sgukyxn923ed6485ud8m7a3lurr4qd4lhv7qhrp49m',
   'saltycrayon': 'npub1nnkhv7scg4zxr9t6sgukyxn923ed6485ud8m7a3lurr4qd4lhv7qhrp49m',
   'gigi': 'npub1dergggklka99wwrs92yz8wdjs952h2ux2ha2ed598ngwu9w7a6fsh9xzpc',
@@ -896,6 +960,7 @@ const nameToNpubMap: Record<string, string> = {
   'ericpp': 'npub1gfh3zdy07r37mgk4hyr0njmajapswk4ct6anc9w407uqkn39aslqqkalqc',
   'qna': 'npub15c88nc8d44gsp4658dnfu5fahswzzu8gaxm5lkuwjud068swdqfspxssvx',
   'jordan': 'npub16djxdyd6tvwhjmq7rv6rphcqlcgcnmyuyv580tw7rry0v440rrcq4ukhtp',
+  'max': 'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpg5xzvw7jezl3whczc0ff2y97eqerl5l2',
   
   // Your following list - Add names as you mention them:
   // 'name': 'npub1hkxnvny5c7w23y8xg5r8rhq5frqujr2hk4xqy0pv9d6luwt3njpqyxfnyv',
@@ -974,6 +1039,62 @@ const podcastAppLinks: Record<string, { url: string; displayName?: string }> = {
   'Buzzsprout': { url: 'https://buzzsprout.com' },
   // Add more as needed
 };
+
+// Function to get show-based tags for automatic tagging
+function getShowBasedTags(showName: string): string[][] {
+  const tags: string[][] = [];
+  const addedPubkeys = new Set<string>();
+  
+  // Check for exact match first
+  let showNpubs = showToNpubMap[showName];
+  
+  // If no exact match, check for partial matches (like bitpunk_fm shows)
+  if (!showNpubs) {
+    const lowerShowName = showName.toLowerCase();
+    for (const [mappedShow, npubs] of Object.entries(showToNpubMap)) {
+      // Check if show name contains "bitpunk" and mapped show contains "bitpunk"
+      if (lowerShowName.includes('bitpunk') && mappedShow.toLowerCase().includes('bitpunk')) {
+        showNpubs = npubs;
+        logger.info(`🎪 Matched ${showName} to ${mappedShow} via bitpunk pattern`);
+        break;
+      }
+    }
+  }
+  
+  if (showNpubs && showNpubs.length > 0) {
+    logger.info(`🎪 Found ${showNpubs.length} npubs for show: ${showName}`);
+    
+    showNpubs.forEach(npub => {
+      try {
+        const { data } = nip19.decode(npub);
+        let hexPubkey: string;
+        
+        if (typeof data === 'string') {
+          hexPubkey = data;
+        } else if (data instanceof Uint8Array) {
+          hexPubkey = Array.from(data, byte => byte.toString(16).padStart(2, '0')).join('');
+        } else {
+          const uint8Array = new Uint8Array(data as ArrayBufferLike);
+          hexPubkey = Array.from(uint8Array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+        
+        if (hexPubkey.length === 128) {
+          hexPubkey = hexPubkey.substring(0, 64);
+        }
+        
+        if (!addedPubkeys.has(hexPubkey)) {
+          tags.push(['p', hexPubkey, '', 'mention']);
+          addedPubkeys.add(hexPubkey);
+          logger.info(`🏷️ Added show-based p-tag for ${showName}`);
+        }
+      } catch (error) {
+        logger.error(`❌ Failed to decode show npub ${npub}:`, error);
+      }
+    });
+  }
+  
+  return tags;
+}
 
 // Function to process message and replace names with npub tags
 function processMessageForTags(message: string): { processedMessage: string; tags: string[][] } {
@@ -1080,6 +1201,16 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     messageTags = tags;
   }
 
+  // Get show-based tags for automatic tagging
+  let showTags: string[][] = [];
+  if (isMusic && event.podcast) {
+    // For music, tag based on the hosting show
+    showTags = getShowBasedTags(event.podcast);
+  } else if (event.podcast) {
+    // For regular podcasts, tag based on podcast name
+    showTags = getShowBasedTags(event.podcast);
+  }
+
   // Format the content for Nostr
   const contentParts = [
     actionText,
@@ -1138,14 +1269,15 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
 
   const content = contentParts.join('\n');
 
-  // Combine hashtags with mention tags
+  // Combine hashtags with mention tags and show tags
   const allTags = [
     ['t', 'boostagram'],
     ['t', 'podcasting20'],
     ['t', 'pc20'],
     ['t', 'v4v'],
     ['t', 'podcast'],
-    ...messageTags
+    ...messageTags,
+    ...showTags
   ];
 
   const nostrEvent = finalizeEvent({
