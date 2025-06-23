@@ -1,15 +1,12 @@
 {
   "date": "2025-06-23",
-  "streamSats": 0,
-  "boostSats": 710,
-  "streamShows": [],
+  "streamSats": 42,
+  "boostSats": 666,
+  "streamShows": [
+    "Flowgnar",
+    "Into The Doerfel-Verse"
+  ],
   "boostShows": [
-    "Bowl After Bowl",
-    "The Heycitizen Experience",
-    "Test Podcast",
-    "Unknown",
-    "Breathe EP",
-    "Test Podcast 2",
-    "Final Test Podcast"
+    "Flowgnar"
   ]
 }

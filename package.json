@@ -18,6 +18,10 @@
     "watch": "while true; do node monitor.js; sleep 30; done",
     "auto-restart": "node scripts/auto-restart.js",
     "dashboard": "node scripts/dashboard.js",
+    "install-service": "node scripts/install-launch-agent.js install",
+    "uninstall-service": "node scripts/install-launch-agent.js uninstall",
+    "service-status": "node scripts/install-launch-agent.js status",
+    "service-logs": "tail -f logs/launch-agent.log",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

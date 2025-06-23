@@ -10,6 +10,7 @@ A webhook receiver that connects Helipad payments to a Nostr bot for automatic p
 - **Comprehensive Monitoring**: Full suite of monitoring and management tools
 - **Auto-Restart**: Automatic recovery from failures
 - **Health Checks**: Built-in health monitoring endpoints
+- **Persistent Operation**: macOS launch agent for 24/7 operation
 
 ## Quick Start
 
@@ -30,6 +31,51 @@ A webhook receiver that connects Helipad payments to a Nostr bot for automatic p
    ```bash
    npm start
    ```
+
+## Persistent Operation (macOS)
+
+**Keep your bot running 24/7, even when your Mac is locked or sleeping!**
+
+### Quick Setup
+```bash
+./setup-persistent-bot.sh
+```
+
+This will:
+- Install a macOS launch agent
+- Configure auto-start on login
+- Keep the bot running when your Mac is locked/sleeping
+- Auto-restart on crashes
+- Log all activity
+
+### Manual Setup
+```bash
+# Install the persistent service
+npm run install-service
+
+# Check if it's running
+npm run service-status
+
+# View service logs
+npm run service-logs
+
+# Remove the service (if needed)
+npm run uninstall-service
+```
+
+### What This Does
+- **Launch Agent**: Creates a system service that starts automatically
+- **Keep Alive**: Ensures the bot stays running even during sleep/lock
+- **Auto-Restart**: Automatically recovers from crashes
+- **Logging**: All activity is logged to `logs/launch-agent.log`
+- **Background**: Runs completely in the background
+
+### Benefits
+- ✅ Bot runs 24/7 without manual intervention
+- ✅ Survives Mac sleep, lock, and restarts
+- ✅ Automatic crash recovery
+- ✅ No need to keep Terminal open
+- ✅ Starts automatically when you log in
 
 ## Monitoring & Management
 
