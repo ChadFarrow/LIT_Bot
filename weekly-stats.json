@@ -1,13 +1,17 @@
 {
   "weekStart": "2025-06-23",
   "streamSats": 42,
-  "boostSats": 666,
+  "boostSats": 16695,
   "streamShows": [
     "Flowgnar",
     "Into The Doerfel-Verse"
   ],
   "boostShows": [
-    "Flowgnar"
+    "Flowgnar",
+    "Ungovernable Misfits",
+    "Spectral Hiding",
+    "bitpunk.fm unwound",
+    "bitpunk.fm"
   ],
   "dailyBreakdown": []
 }

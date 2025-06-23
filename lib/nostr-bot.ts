@@ -809,6 +809,8 @@ const nameToNpubMap: Record<string, string> = {
   'sirspencer': 'npub1yvscx9vrmpcmwcmydrm8lauqdpngum4ne8xmkgc2d4rcaxrx7tkswdwzdu',
   'sir spencer': 'npub1yvscx9vrmpcmwcmydrm8lauqdpngum4ne8xmkgc2d4rcaxrx7tkswdwzdu',
   'ericpp': 'npub1gfh3zdy07r37mgk4hyr0njmajapswk4ct6anc9w407uqkn39aslqqkalqc',
+  'qna': 'npub15c88nc8d44gsp4658dnfu5fahswzzu8gaxm5lkuwjud068swdqfspxssvx',
+  'jordan': 'npub16djxdyd6tvwhjmq7rv6rphcqlcgcnmyuyv580tw7rry0v440rrcq4ukhtp',
   
   // Your following list - Add names as you mention them:
   // 'name': 'npub1hkxnvny5c7w23y8xg5r8rhq5frqujr2hk4xqy0pv9d6luwt3njpqyxfnyv',

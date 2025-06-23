@@ -31,12 +31,49 @@ Default relays the bot posts to:
 - Filters out streaming payments automatically
 - Supports boosts with or without messages
 
+## Persistent Operation (macOS)
+
+### Launch Agent Setup
+The bot is now configured to run persistently using macOS launch agents:
+- **Auto-start**: Starts automatically when you log in
+- **Keep alive**: Continues running when Mac is locked or sleeping
+- **Auto-restart**: Automatically recovers from crashes
+- **Background operation**: No need to keep Terminal open
+
+### Service Management Commands
+```bash
+# Check if persistent service is running
+npm run service-status
+
+# View service logs
+npm run service-logs
+
+# Stop persistent service (if needed)
+npm run uninstall-service
+
+# Reinstall persistent service
+npm run install-service
+```
+
+### Service Details
+- **Launch Agent**: `com.boostbot.helipad`
+- **Plist Location**: `/Users/chad-mini/Library/LaunchAgents/com.boostbot.helipad.plist`
+- **Log File**: `logs/launch-agent.log`
+- **Auto-restart Script**: `scripts/auto-restart.js`
+
+### Benefits
+✅ Bot runs 24/7 without manual intervention  
+✅ Survives Mac sleep, lock, and restarts  
+✅ Automatic crash recovery  
+✅ No need to keep Terminal open  
+✅ Starts automatically when you log in  
+
 ## Bot Management Commands
 
 ### Starting the Bot
 ```bash
 cd /Users/chad-mini/Vibe/BoostBot
-PORT=3002 npm start
+PORT=3333 npm start
 ```
 
 ### Stopping the Bot
@@ -56,8 +93,11 @@ pkill -f helipad-webhook
 # Check if bot is running
 ps aux | grep -v grep | grep helipad
 
-# Check what's using port 3002
-lsof -i :3002
+# Check what's using port 3333
+lsof -i :3333
+
+# Check persistent service status
+npm run service-status
 ```
 
 ### Restarting the Bot
@@ -66,15 +106,16 @@ lsof -i :3002
 pkill -f helipad-webhook
 
 # Wait a moment then start
-sleep 2 && cd /Users/chad-mini/Vibe/BoostBot && PORT=3002 npm start
+sleep 2 && cd /Users/chad-mini/Vibe/BoostBot && PORT=3333 npm start
 ```
 
 ### Important Notes
-- Bot runs on port 3002 (changed from default 3001)
-- Webhook URL: `http://localhost:3002/helipad-webhook`
-- Health check: `http://localhost:3002/health`
+- Bot runs on port 3333 (changed from default 3001)
+- Webhook URL: `http://localhost:3333/helipad-webhook`
+- Health check: `http://localhost:3333/health`
 - Only posts boosts ≥25 sats (filters out smaller streaming payments)
 - Waits 30 seconds to collect all splits before posting largest one
+- **Persistent service**: Now runs automatically via macOS launch agent
 
 ## Development Workflow
 
@@ -91,7 +132,7 @@ Create a test configuration to avoid posting to live relays during development:
 export TEST_MODE=true
 
 # Start bot in test mode
-TEST_MODE=true PORT=3002 npm start
+TEST_MODE=true PORT=3333 npm start
 ```
 
 ### Quick Rollback
@@ -104,7 +145,7 @@ pkill -f helipad-webhook
 git checkout backup-working-version
 
 # Restart bot
-PORT=3002 npm start
+PORT=3333 npm start
 ```
 
 ### Starting Development Session
@@ -116,7 +157,7 @@ pkill -f helipad-webhook
 sleep 2
 
 # Start in test mode on development branch
-TEST_MODE=true PORT=3002 npm start
+TEST_MODE=true PORT=3333 npm start
 ```
 
 ### Port Already in Use Fix
@@ -126,7 +167,7 @@ If you get "EADDRINUSE" error:
 pkill -f helipad-webhook
 
 # Wait and try again
-sleep 2 && TEST_MODE=true PORT=3002 npm start
+sleep 2 && TEST_MODE=true PORT=3333 npm start
 ```
 
 ### Current Branch Status
@@ -142,6 +183,30 @@ When `TEST_MODE=true`:
 - 🧪 Logs start with "TEST MODE" indicator
 
 ## Recent Enhancements Completed
+
+### Persistent Operation Setup (January 2025)
+✅ **macOS Launch Agent** - Created system service for 24/7 operation  
+✅ **Auto-start on Login** - Bot starts automatically when you log in  
+✅ **Sleep/Lock Survival** - Continues running when Mac is locked or sleeping  
+✅ **Auto-restart on Crashes** - Automatically recovers from failures  
+✅ **Background Operation** - No need to keep Terminal open  
+✅ **Comprehensive Logging** - All activity logged to `logs/launch-agent.log`  
+
+### Implementation Details
+- **Launch Agent Script**: `scripts/install-launch-agent.js`
+- **Setup Script**: `setup-persistent-bot.sh`
+- **Service Label**: `com.boostbot.helipad`
+- **Plist Location**: `/Users/chad-mini/Library/LaunchAgents/com.boostbot.helipad.plist`
+- **Auto-restart Monitor**: Uses existing `scripts/auto-restart.js`
+
+### New Commands Added
+```bash
+npm run install-service    # Install persistent service
+npm run service-status     # Check service status
+npm run service-logs       # View service logs
+npm run uninstall-service  # Remove service
+./setup-persistent-bot.sh  # Guided setup
+```
 
 ### Enhanced Nostr Post Features (June 2025)
 ✅ **Fixed split spam** - Only posts largest split per boost session  
