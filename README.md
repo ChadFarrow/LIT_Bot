@@ -21,7 +21,7 @@ A webhook receiver that connects Helipad payments to a Nostr bot for automatic p
 2. **Set up environment variables:**
    Create a `.env` file with:
    ```
-   NSEC=your_nostr_private_key_here
+   NSEC=REPLACE_WITH_YOUR_ACTUAL_NOSTR_PRIVATE_KEY
    HELIPAD_WEBHOOK_TOKEN=optional_auth_token
    PORT=3001
    ```
