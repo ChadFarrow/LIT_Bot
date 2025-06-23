@@ -2,6 +2,7 @@
 
 ## Repository Information
 - **Main Repository**: https://github.com/Podcastindex-org/helipad
+- **Podcast Index**: https://github.com/Podcastindex-org
 - **Purpose**: Helipad webhook integration for posting boosts to Nostr
 
 ## Helipad Action Values

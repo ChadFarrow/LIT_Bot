@@ -238,6 +238,13 @@ export async function announceFundraiserEnded(options: FundraiserUpdateOptions &
 const boostSessions = new Map<string, { largestSplit: HelipadPaymentEvent, timeout: NodeJS.Timeout }>();
 const postedBoosts = new Set<string>();
 
+// Interface for persisting session data
+interface PersistedSession {
+  sessionId: string;
+  largestSplit: HelipadPaymentEvent;
+  expiresAt: number; // timestamp when session should timeout
+}
+
 // Daily tracking for streams and boosts
 interface DailyStats {
   date: string;
@@ -304,9 +311,10 @@ function scheduleHourlySave(): void {
   console.log(`💾 Hourly save scheduled`);
 }
 
-// File paths for persisting stats
+// File paths for persisting stats and sessions
 const DAILY_STATS_FILE = path.join(process.cwd(), 'daily-stats.json');
 const WEEKLY_STATS_FILE = path.join(process.cwd(), 'weekly-stats.json');
+const BOOST_SESSIONS_FILE = path.join(process.cwd(), 'boost-sessions.json');
 
 // Load daily stats from file
 async function loadDailyStats(): Promise<void> {
@@ -389,6 +397,78 @@ async function saveWeeklyStats(): Promise<void> {
     await fs.writeFile(WEEKLY_STATS_FILE, JSON.stringify(dataToSave, null, 2));
   } catch (error) {
     console.error(`❌ Failed to save weekly stats:`, error);
+  }
+}
+
+// Load boost sessions from file
+async function loadBoostSessions(): Promise<void> {
+  try {
+    const data = await fs.readFile(BOOST_SESSIONS_FILE, 'utf-8');
+    const savedSessions: PersistedSession[] = JSON.parse(data);
+    const now = Date.now();
+    let loadedCount = 0;
+    let expiredCount = 0;
+    
+    savedSessions.forEach(session => {
+      if (session.expiresAt > now) {
+        // Session hasn't expired, restore it with new timeout
+        const timeLeft = session.expiresAt - now;
+        const timeout = setTimeout(async () => {
+          logger.info(`Posting delayed session ${session.sessionId} after restart`, { 
+            amount: session.largestSplit.value_msat / 1000, 
+            total: session.largestSplit.value_msat_total / 1000 
+          });
+          
+          const bot = createNostrBot();
+          if (bot) {
+            postedBoosts.add(session.sessionId);
+            boostSessions.delete(session.sessionId);
+            await postBoostToNostr(session.largestSplit, bot);
+            await saveBoostSessions(); // Clean up file
+          }
+        }, timeLeft);
+        
+        boostSessions.set(session.sessionId, {
+          largestSplit: session.largestSplit,
+          timeout
+        });
+        loadedCount++;
+      } else {
+        expiredCount++;
+      }
+    });
+    
+    if (loadedCount > 0 || expiredCount > 0) {
+      logger.info(`📦 Loaded boost sessions: ${loadedCount} active, ${expiredCount} expired`);
+      if (loadedCount > 0) {
+        await saveBoostSessions(); // Remove expired sessions from file
+      }
+    }
+  } catch (error) {
+    logger.info(`📦 No previous boost sessions found`);
+  }
+}
+
+// Save boost sessions to file
+async function saveBoostSessions(): Promise<void> {
+  try {
+    const now = Date.now();
+    const sessionsToSave: PersistedSession[] = [];
+    
+    boostSessions.forEach((session, sessionId) => {
+      // Only save sessions that haven't been posted yet
+      if (!postedBoosts.has(sessionId)) {
+        sessionsToSave.push({
+          sessionId,
+          largestSplit: session.largestSplit,
+          expiresAt: now + 30000 // Current time + 30 seconds
+        });
+      }
+    });
+    
+    await fs.writeFile(BOOST_SESSIONS_FILE, JSON.stringify(sessionsToSave, null, 2));
+  } catch (error) {
+    logger.error(`❌ Failed to save boost sessions:`, error);
   }
 }
 
@@ -649,6 +729,7 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
   if (dailyStats.streamSats === 0 && dailyStats.boostSats === 0 && dailyStats.streamShows.size === 0) {
     await loadDailyStats();
     await loadWeeklyStats();
+    await loadBoostSessions();
   }
 
   // Check if we need to reset daily stats (new day)
@@ -766,7 +847,11 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     
     // Post the largest payment from this session
     await postBoostToNostr(session.largestSplit, bot);
+    await saveBoostSessions(); // Clean up persisted sessions
   }, 30000);
+  
+  // Save sessions to disk after any changes
+  await saveBoostSessions();
 }
 
 // Mapping of names to npubs for auto-tagging in boost messages
@@ -1013,12 +1098,27 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     ? `📱 App: ${appConfig.url}`
     : `📱 App: ${appName}`;
 
-  // Add podcast and episode info only if they exist and aren't placeholder values
-  if (event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless') {
-    contentParts.push(`🎧 Podcast: ${event.podcast}`);
-  }
-  if (event.episode && event.episode.trim() && event.episode.trim().toLowerCase() !== 'nameless') {
-    contentParts.push(`📻 Episode: ${event.episode}`);
+  // Check if this is a music boost (has remote_podcast and remote_episode)
+  const isMusic = event.remote_podcast && event.remote_podcast.trim() && 
+                  event.remote_episode && event.remote_episode.trim();
+  
+  if (isMusic) {
+    // Music boost - show the hosting show and the music track
+    if (event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless') {
+      const showInfo = event.episode && event.episode.trim() && event.episode.trim().toLowerCase() !== 'nameless' 
+        ? `${event.podcast} - ${event.episode}` 
+        : event.podcast;
+      contentParts.push(`🎧 Show: ${showInfo}`);
+    }
+    contentParts.push(`🎵 Now Playing: "${event.remote_episode}" by ${event.remote_podcast}`);
+  } else {
+    // Regular podcast boost - show podcast and episode info
+    if (event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless') {
+      contentParts.push(`🎧 Podcast: ${event.podcast}`);
+    }
+    if (event.episode && event.episode.trim() && event.episode.trim().toLowerCase() !== 'nameless') {
+      contentParts.push(`📻 Episode: ${event.episode}`);
+    }
   }
 
   contentParts.push(
