@@ -2,7 +2,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
-import { announceHelipadPayment, postTestDailySummary } from './lib/nostr-bot.ts';
+import { announceHelipadPayment, postTestDailySummary, postTestWeeklySummary } from './lib/nostr-bot.ts';
 
 dotenv.config();
 
@@ -60,6 +60,17 @@ app.get('/test-daily-summary', async (req, res) => {
   } catch (err) {
     console.error('❌ Error posting test daily summary:', err);
     res.status(500).send('Error posting test daily summary');
+  }
+});
+
+// Test weekly summary endpoint
+app.get('/test-weekly-summary', async (req, res) => {
+  try {
+    await postTestWeeklySummary();
+    res.status(200).send('Test weekly summary posted to Nostr');
+  } catch (err) {
+    console.error('❌ Error posting test weekly summary:', err);
+    res.status(500).send('Error posting test weekly summary');
   }
 });
 

@@ -2,6 +2,9 @@
 
 A sophisticated webhook receiver that connects [Helipad](https://github.com/Podcastindex-org/helipad) to Nostr, intelligently posting boost announcements and daily Value4Value summaries.
 
+> **⚠️ PROOF OF CONCEPT NOTICE**  
+> This project is a proof of concept that has been heavily modified for personal use. While functional, it may require significant customization for your specific setup. Your mileage may vary. Contributions and improvements are welcome!
+
 ## Getting Started from Scratch
 
 ### Prerequisites
