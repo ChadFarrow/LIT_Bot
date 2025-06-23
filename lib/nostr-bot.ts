@@ -1060,19 +1060,22 @@ const podcastAppLinks: Record<string, { url: string; displayName?: string }> = {
   // Add more as needed
 };
 
-// Function to get show-based tags for automatic tagging
-function getShowBasedTags(showName: string): string[][] {
-  const tags: string[][] = [];
-  const addedPubkeys = new Set<string>();
-  
-  // Check for exact match first
+// Utility to normalize podcast/show names for matching
+function normalizeShowName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+// Utility to get npubs for a show, handling exact and partial matches
+function getShowNpubs(showName: string): string[] {
   let showNpubs = showToNpubMap[showName];
-  
-  // If no exact match, check for partial matches (like bitpunk_fm shows)
   if (!showNpubs) {
-    const lowerShowName = showName.toLowerCase();
+    const lowerShowName = normalizeShowName(showName);
     for (const [mappedShow, npubs] of Object.entries(showToNpubMap)) {
-      // Check if show name contains "bitpunk" and mapped show contains "bitpunk"
+      if (lowerShowName === normalizeShowName(mappedShow)) {
+        showNpubs = npubs;
+        break;
+      }
+      // Partial match for bitpunk
       if (lowerShowName.includes('bitpunk') && mappedShow.toLowerCase().includes('bitpunk')) {
         showNpubs = npubs;
         logger.info(`🎪 Matched ${showName} to ${mappedShow} via bitpunk pattern`);
@@ -1080,15 +1083,20 @@ function getShowBasedTags(showName: string): string[][] {
       }
     }
   }
-  
-  if (showNpubs && showNpubs.length > 0) {
+  return showNpubs || [];
+}
+
+// Refactored: getShowBasedTags uses getShowNpubs
+function getShowBasedTags(showName: string): string[][] {
+  const tags: string[][] = [];
+  const addedPubkeys = new Set<string>();
+  const showNpubs = getShowNpubs(showName);
+  if (showNpubs.length > 0) {
     logger.info(`🎪 Found ${showNpubs.length} npubs for show: ${showName}`);
-    
     showNpubs.forEach(npub => {
       try {
         const { data } = nip19.decode(npub);
         let hexPubkey: string;
-        
         if (typeof data === 'string') {
           hexPubkey = data;
         } else if (data instanceof Uint8Array) {
@@ -1097,11 +1105,9 @@ function getShowBasedTags(showName: string): string[][] {
           const uint8Array = new Uint8Array(data as ArrayBufferLike);
           hexPubkey = Array.from(uint8Array, byte => byte.toString(16).padStart(2, '0')).join('');
         }
-        
         if (hexPubkey.length === 128) {
           hexPubkey = hexPubkey.substring(0, 64);
         }
-        
         if (!addedPubkeys.has(hexPubkey)) {
           tags.push(['p', hexPubkey, '', 'mention']);
           addedPubkeys.add(hexPubkey);
@@ -1112,7 +1118,6 @@ function getShowBasedTags(showName: string): string[][] {
       }
     });
   }
-  
   return tags;
 }
 
@@ -1245,7 +1250,7 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
 
   // Build visible host mentions (e.g., nostr:npub1... nostr:npub1...)
   if (event.podcast) {
-    const showNpubs = showToNpubMap[event.podcast] || [];
+    const showNpubs = getShowNpubs(event.podcast);
     for (const npub of showNpubs) {
       showHostMentions.push(`nostr:${npub}`);
     }
