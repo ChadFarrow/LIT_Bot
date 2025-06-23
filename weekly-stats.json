@@ -1,7 +1,7 @@
 {
   "weekStart": "2025-06-23",
   "streamSats": 42,
-  "boostSats": 16695,
+  "boostSats": 21692,
   "streamShows": [
     "Flowgnar",
     "Into The Doerfel-Verse"
@@ -11,7 +11,11 @@
     "Ungovernable Misfits",
     "Spectral Hiding",
     "bitpunk.fm unwound",
-    "bitpunk.fm"
+    "bitpunk.fm",
+    "Sinister Pupose (CCR Cover)",
+    "Sats and Sounds",
+    "Bowl After Bowl",
+    "Test Podcast"
   ],
   "dailyBreakdown": []
 }

@@ -111,6 +111,7 @@ sleep 2 && cd /Users/chad-mini/Vibe/BoostBot && PORT=3333 npm start
 ```
 
 ### Important Notes
+- **Webhook Port**: Helipad webhook is on port 3333
 - Bot runs on port 3333 (changed from default 3001)
 - Webhook URL: `http://localhost:3333/helipad-webhook`
 - Health check: `http://localhost:3333/health`
@@ -244,3 +245,4 @@ npm run uninstall-service  # Remove service
 - **Link building**: Extracts `feedID` from TLV data for Podcast Index URLs
 - **Amount filtering**: `value_msat_total < 25000` blocks streaming sats
 - **Action filtering**: Only processes `action === 2` (boosts)
+```

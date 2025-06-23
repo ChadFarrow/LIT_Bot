@@ -423,7 +423,16 @@ async function loadBoostSessions(): Promise<void> {
           if (bot) {
             postedBoosts.add(session.sessionId);
             boostSessions.delete(session.sessionId);
-            await postBoostToNostr(session.largestSplit, bot);
+            try {
+              await postBoostToNostr(session.largestSplit, bot);
+            } catch (error) {
+              logger.error('Error in postBoostToNostr during session restoration', { 
+                error: error.message, 
+                stack: error.stack,
+                session: session.sessionId,
+                amount: session.largestSplit.value_msat_total / 1000
+              });
+            }
             await saveBoostSessions(); // Clean up file
           }
         }, timeLeft);
@@ -846,7 +855,16 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     boostSessions.delete(sessionId);
     
     // Post the largest payment from this session
-    await postBoostToNostr(session.largestSplit, bot);
+    try {
+      await postBoostToNostr(session.largestSplit, bot);
+    } catch (error) {
+      logger.error('Error in postBoostToNostr', { 
+        error: error.message, 
+        stack: error.stack,
+        session: sessionId,
+        amount: session.largestSplit.value_msat_total / 1000
+      });
+    }
     await saveBoostSessions(); // Clean up persisted sessions
   }, 30000);
   
@@ -873,7 +891,7 @@ const showToNpubMap: Record<string, string[]> = {
     'npub1f49twdlzlw667r74jz6t06xxlemd8gp2j7g77l76easpl8jsltvqvlzpez', // bitpunk_fm
   ],
   'Sats and Sounds': [
-    // Add show hosts/creators here
+    'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh', // Kevin Bae
   ],
   'Ungovernable Misfits': [
     'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpssa8jg8', // Max
@@ -960,7 +978,9 @@ const nameToNpubMap: Record<string, string> = {
   'ericpp': 'npub1gfh3zdy07r37mgk4hyr0njmajapswk4ct6anc9w407uqkn39aslqqkalqc',
   'qna': 'npub15c88nc8d44gsp4658dnfu5fahswzzu8gaxm5lkuwjud068swdqfspxssvx',
   'jordan': 'npub16djxdyd6tvwhjmq7rv6rphcqlcgcnmyuyv580tw7rry0v440rrcq4ukhtp',
-  'max': 'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpg5xzvw7jezl3whczc0ff2y97eqerl5l2',
+  'max': 'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpssa8jg8',
+  'kevin bae': 'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh',
+  'kevinbae': 'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh',
   
   // Your following list - Add names as you mention them:
   // 'name': 'npub1hkxnvny5c7w23y8xg5r8rhq5frqujr2hk4xqy0pv9d6luwt3njpqyxfnyv',
@@ -1172,6 +1192,13 @@ function processMessageForTags(message: string): { processedMessage: string; tag
 }
 
 async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<void> {
+  logger.info('Starting to post boost to Nostr', { 
+    sender: event.sender, 
+    amount: event.value_msat_total / 1000, 
+    podcast: event.podcast, 
+    episode: event.episode 
+  });
+  
   const actionText = "📤 Boost Sent!";
   const senderLabel = "👤 Sender";
 
@@ -1191,6 +1218,10 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     console.warn('⚠️ Failed to parse TLV data for show link:', error);
   }
 
+  // Check if this is a music boost (has remote_podcast and remote_episode)
+  const isMusic = event.remote_podcast && event.remote_podcast.trim() && 
+                  event.remote_episode && event.remote_episode.trim();
+
   // Process message for auto-tagging
   let messageTags: string[][] = [];
   let displayMessage = event.message;
@@ -1203,12 +1234,21 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
 
   // Get show-based tags for automatic tagging
   let showTags: string[][] = [];
+  let showHostMentions: string[] = [];
   if (isMusic && event.podcast) {
     // For music, tag based on the hosting show
     showTags = getShowBasedTags(event.podcast);
   } else if (event.podcast) {
     // For regular podcasts, tag based on podcast name
     showTags = getShowBasedTags(event.podcast);
+  }
+
+  // Build visible host mentions (e.g., nostr:npub1... nostr:npub1...)
+  if (event.podcast) {
+    const showNpubs = showToNpubMap[event.podcast] || [];
+    for (const npub of showNpubs) {
+      showHostMentions.push(`nostr:${npub}`);
+    }
   }
 
   // Format the content for Nostr
@@ -1222,6 +1262,11 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     contentParts.push(`💬 Message: ${displayMessage}`);
   }
 
+  // Add visible host mentions if any
+  if (showHostMentions.length > 0) {
+    contentParts.push(`👥 Hosts: ${showHostMentions.join(' ')}`);
+  }
+
   // Build app info with link if available
   const appName = event.app || '';
   const appConfig = podcastAppLinks[appName];
@@ -1229,10 +1274,6 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
     ? `📱 App: ${appConfig.url}`
     : `📱 App: ${appName}`;
 
-  // Check if this is a music boost (has remote_podcast and remote_episode)
-  const isMusic = event.remote_podcast && event.remote_podcast.trim() && 
-                  event.remote_episode && event.remote_episode.trim();
-  
   if (isMusic) {
     // Music boost - show the hosting show and the music track
     if (event.podcast && event.podcast.trim() && event.podcast.trim().toLowerCase() !== 'nameless') {
@@ -1288,4 +1329,11 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
   }, bot.getSecretKey());
 
   await bot.publishToRelays(nostrEvent);
+  
+  logger.info('Successfully posted boost to Nostr', { 
+    sender: event.sender, 
+    amount: event.value_msat_total / 1000, 
+    contentLength: content.length,
+    tagsCount: allTags.length
+  });
 }

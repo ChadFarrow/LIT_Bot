@@ -19,7 +19,7 @@ function getProcessInfo() {
 
 function getHealthStatus() {
   try {
-    const response = execSync('curl -s -w "%{http_code}" http://localhost:3001/health', { encoding: 'utf8' });
+    const response = execSync('curl -s -w "%{http_code}" http://localhost:3333/health', { encoding: 'utf8' });
     const statusCode = response.slice(-3);
     return parseInt(statusCode);
   } catch (error) {
