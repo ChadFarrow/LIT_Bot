@@ -16,4 +16,9 @@ yarn-error.log*
 
 # Build output
 dist
-build 
+build
+
+# Runtime data and user-specific stats
+bot-status.json
+daily-stats.json
+weekly-stats.json 
