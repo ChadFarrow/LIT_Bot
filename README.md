@@ -1,463 +1,162 @@
-# Nostr Boost Bot
+# BoostBot - Helipad to Nostr Webhook Bot
 
-A sophisticated webhook receiver that connects [Helipad](https://github.com/Podcastindex-org/helipad) to Nostr, intelligently posting boost announcements and daily Value4Value summaries.
-
-> **⚠️ PROOF OF CONCEPT NOTICE**  
-> This project is a proof of concept that has been heavily modified for personal use. While functional, it may require significant customization for your specific setup. Your mileage may vary. Contributions and improvements are welcome!
-
-## Getting Started from Scratch
-
-### Prerequisites
-
-You'll need Node.js (18+ recommended) and a Nostr identity. Here's how to get everything set up on your platform:
-
-#### Install Node.js
-
-**Windows:**
-```powershell
-# Download and install from https://nodejs.org
-# Or use Chocolatey package manager
-choco install nodejs
-
-# Verify installation
-node --version
-npm --version
-```
-
-**macOS:**
-```bash
-# Download from https://nodejs.org
-# Or use Homebrew
-brew install node
-
-# Verify installation
-node --version
-npm --version
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-# Update package list
-sudo apt update
-
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Verify installation
-node --version
-npm --version
-```
-
-**Linux (CentOS/RHEL):**
-```bash
-# Install Node.js
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-sudo yum install -y nodejs
-
-# Verify installation
-node --version
-npm --version
-```
-
-#### Get a Nostr Identity
-
-1. **Generate keys** using any Nostr client (Damus, Amethyst, Iris, etc.)
-2. **Online tools**: https://nostrtool.com or https://rana.lt
-3. **Save your nsec private key** securely - you'll need it for the bot
-
-#### Set Up Helipad
-
-Follow the [Helipad installation guide](https://github.com/Podcastindex-org/helipad) to set up your Lightning payment processor.
-
-### Quick Start
-
-**Windows (PowerShell):**
-```powershell
-# Clone and setup
-git clone https://github.com/ChadFarrow/Helipad-to-Nostr-BoostBot.git
-cd Helipad-to-Nostr-BoostBot
-npm install
-
-# Create environment file
-New-Item .env -ItemType File
-notepad .env
-
-# Add your configuration (see below)
-# Start the bot
-$env:PORT=3002; npm start
-```
-
-**macOS/Linux:**
-```bash
-# Clone and setup
-git clone https://github.com/ChadFarrow/Helipad-to-Nostr-BoostBot.git
-cd Helipad-to-Nostr-BoostBot
-npm install
-
-# Create environment file
-touch .env
-nano .env  # or vim, code, etc.
-
-# Add your configuration (see below)
-# Start the bot
-PORT=3002 npm start
-```
-
-### Environment Configuration
-
-Add this to your `.env` file:
-
-```env
-# Your Nostr private key (keep this secret!)
-NOSTR_BOOST_BOT_NSEC=nsec1your_actual_private_key_here
-
-# Port for the webhook
-PORT=3002
-
-# Random secret token (generate a strong one)
-HELIPAD_WEBHOOK_TOKEN=your_random_secret_like_abc123xyz789
-
-# Optional: Enable test mode (prevents actual Nostr posts)
-# TEST_MODE=true
-```
-
-### Configure Helipad Webhook
-
-In your Helipad settings:
-- **Webhook URL**: `http://your-server-ip:3002/helipad-webhook`
-- **Authorization Token**: Your `HELIPAD_WEBHOOK_TOKEN` value
-- **Triggers**: Enable "New sent boosts" only
-
-### Testing Your Setup
-
-**Health Check:**
-```bash
-# Windows (PowerShell)
-Invoke-WebRequest http://localhost:3002/health
-
-# macOS/Linux
-curl http://localhost:3002/health
-```
-
-**Test Daily Summary:**
-```bash
-# Windows (PowerShell)
-Invoke-WebRequest http://localhost:3002/test-daily-summary
-
-# macOS/Linux  
-curl http://localhost:3002/test-daily-summary
-```
-
-### Production Deployment
-
-#### Using PM2 (Recommended)
-
-**Install PM2:**
-```bash
-# All platforms
-npm install -g pm2
-```
-
-**Windows:**
-```powershell
-# Start bot with PM2
-pm2 start npm --name "nostr-boost-bot" -- start
-pm2 save
-pm2-windows-startup install
-```
-
-**macOS/Linux:**
-```bash
-# Start bot with PM2
-pm2 start "PORT=3002 npm start" --name nostr-boost-bot
-pm2 save
-pm2 startup
-# Follow the displayed instructions
-```
-
-#### Using Docker
-
-Create `Dockerfile`:
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 3002
-USER node
-CMD ["npm", "start"]
-```
-
-**Build and run:**
-```bash
-# All platforms
-docker build -t nostr-boost-bot .
-docker run -d --name nostr-boost-bot -p 3002:3002 --env-file .env nostr-boost-bot
-```
-
-### Troubleshooting Setup
-
-**Node.js Issues:**
-- Ensure you have Node.js 18 or higher
-- Try clearing npm cache: `npm cache clean --force`
-- On Windows, you might need Visual Studio Build Tools
-
-**Port Issues:**
-```bash
-# Windows - Check port usage
-netstat -ano | findstr :3002
-
-# macOS/Linux - Check port usage  
-lsof -i :3002
-
-# Use different port if needed
-PORT=3003 npm start
-```
-
-**Permission Issues (Linux/macOS):**
-```bash
-# Fix npm permissions
-sudo chown -R $(whoami) ~/.npm
-sudo chown -R $(whoami) /usr/local/lib/node_modules
-```
+A webhook receiver that connects Helipad payments to a Nostr bot for automatic posting of boost events.
 
 ## Features
 
-### 🚀 Smart Boost Posts
-- **Individual boost announcements** with sender, amount, message, and podcast info
-- **App promotion** - Clickable links to boost-supporting podcast apps
-- **Show discovery** - Links to podcast pages via Podcast Index
-- **Split intelligence** - Groups splits and posts only the largest recipient
-- **Stream filtering** - Blocks small streaming payments to prevent spam
+- **Webhook Receiver**: Listens for Helipad payment events on port 3001
+- **Nostr Integration**: Automatically posts boost events to multiple Nostr relays
+- **Daily/Weekly Summaries**: Posts automated summaries of boost activity
+- **Comprehensive Monitoring**: Full suite of monitoring and management tools
+- **Auto-Restart**: Automatic recovery from failures
+- **Health Checks**: Built-in health monitoring endpoints
 
-### 📊 Daily V4V Summaries
-- **Automatic daily reports** posted at midnight
-- **Comprehensive tracking** of all streams and boosts
-- **Show breakdown** - Lists all podcasts/tracks supported
-- **Persistent data** - Survives bot restarts with smart save strategy
-- **Manual testing** - Preview daily summaries anytime
+## Quick Start
 
-### 🛡️ Advanced Filtering
-- **Action-based filtering** - Distinguishes boosts from streams using Helipad data
-- **Session grouping** - Prevents duplicate posts from split payments
-- **Smart delays** - Waits to collect all splits before posting
-- **Clean formatting** - Hides empty fields and placeholder values
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Example Posts
+2. **Set up environment variables:**
+   Create a `.env` file with:
+   ```
+   NSEC=your_nostr_private_key_here
+   HELIPAD_WEBHOOK_TOKEN=optional_auth_token
+   PORT=3001
+   ```
 
-### Boost Post
-```
-📤 Boost Sent!
+3. **Start the bot:**
+   ```bash
+   npm start
+   ```
 
-👤 Sender: ChadF
-💬 Message: Great episode about Lightning!
-🎧 Podcast: Lightning Thrashes
-📻 Episode: 94 - Lightning Thrashes  
-💸 Amount: 1,000 sats
-📱 App: https://fountain.fm
-🎧 Listen: https://podcastindex.org/podcast/6602332
+## Monitoring & Management
 
-#Boostagram #Podcasting20 #PC20 #V4V
-```
-
-### Daily Summary
-```
-📊 Daily V4V Summary - 2025-06-22
-
-🌊 Streamed: 1,250 sats
-📤 Boosted: 500 sats
-💰 Total: 1,750 sats
-
-🎧 Streamed to:
-• Lightning Thrashes
-• The Wait Is Over
-• Underwater - Single
-
-🚀 Boosted:
-• Lightning Thrashes
-• Mike's Mixtape
-
-#V4V #Podcasting20 #PC20 #ValueStreaming #Boostagram
-```
-
-## Setup and Installation
-
-### 1. Clone the Repository
+### Quick Status Check
 ```bash
-git clone https://github.com/ChadFarrow/Helipad-to-Nostr-BoostBot.git
-cd BoostBot
+npm run status      # Detailed status information
+npm run health      # Quick health check
+npm run dashboard   # Beautiful dashboard overview
 ```
 
-### 2. Install Dependencies
+### Process Management
 ```bash
-npm install
+npm run stop        # Stop the bot
+npm run restart     # Restart the bot
+npm run logs        # View detailed logs
 ```
 
-### 3. Create Environment File
-Create a `.env` file in the root directory:
-
-```env
-# Nostr Bot's private key (starts with npub...)
-NOSTR_BOOST_BOT_NSEC=your_private_key_here
-
-# The port your webhook receiver will listen on (default: 3002)
-PORT=3002
-
-# A strong, random secret token to share with Helipad
-HELIPAD_WEBHOOK_TOKEN=your_webhook_token_here
-
-# Optional: Enable test mode (prevents actual Nostr posts)
-# TEST_MODE=true
-```
-
-### 4. Run the Server
+### Continuous Monitoring
 ```bash
-# Production
-PORT=3002 npm start
-
-# Development/Testing
-TEST_MODE=true PORT=3002 npm start
+npm run monitor     # One-time status check
+npm run watch       # Continuous monitoring (30s intervals)
+npm run auto-restart # Auto-restart on failure (recommended)
 ```
 
-### 5. Configure Helipad
-- **Webhook URL**: `http://<your-server-ip>:3002/helipad-webhook`
-- **Authorization Token**: Your `HELIPAD_WEBHOOK_TOKEN` value
-- **Triggers**: Enable "New sent boosts" (received boosts are filtered out)
+## Webhook Endpoints
 
-## Bot Management
-
-### Starting the Bot
-```bash
-cd /path/to/BoostBot
-PORT=3002 npm start
-```
-
-### Stopping the Bot
-```bash
-# Kill all helipad processes
-pkill -f helipad-webhook
-
-# Or kill specific process
-kill [PID]
-```
-
-### Restarting the Bot
-```bash
-pkill -f helipad-webhook && sleep 2 && PORT=3002 npm start
-```
-
-### Health Check
-Visit `http://localhost:3002/health` to verify the bot is running.
-
-### Test Daily Summary
-Visit `http://localhost:3002/test-daily-summary` to post a test daily summary.
-
-## Configuration
-
-### Supported Podcast Apps
-The bot automatically links to these boost-supporting apps:
-- CurioCaster, Fountain, Podverse, Castamatic
-- Breez, Sphinx, LNBeats, Alby, TrueFans
-- And more... (see `lib/nostr-bot.ts` for full list)
-
-### Default Nostr Relays
-The bot posts to these relays by default:
-- `wss://relay.damus.io` - Damus relay
-- `wss://relay.nostr.band` - Nostr.band relay  
-- `wss://relay.primal.net` - Primal relay
-- `wss://7srr7chyc6vlhzpc2hl6lyungvluohzrmt76kbs4kmydhrxoakkbquad.local/` - ChadF's personal Tor relay
-- `wss://chadf.nostr1.com/` - ChadF's personal relay
-
-**Note**: The personal relays are specific to this configuration. You may want to replace them with your own relays or remove them from the default list.
-
-### Data Persistence
-- Daily stats saved to `daily-stats.json`
-- **Auto-save triggers**: Payments ≥1000 sats, payments with messages
-- **Scheduled saves**: Hourly backups, daily resets
-- **Crash recovery**: Loads previous data on restart
-
-### Filtering Logic
-- **Streams** (action=1): Tracked for daily summary, no individual posts
-- **Boosts** (action=2): Individual posts + daily summary tracking
-- **Split handling**: 2-minute session windows, posts largest split only
-- **Empty fields**: Hides "Nameless" placeholders and empty podcast/episode info
+- **POST** `/helipad-webhook` - Main webhook endpoint for Helipad events
+- **GET** `/health` - Health check endpoint
+- **GET** `/test-daily-summary` - Test daily summary posting
+- **GET** `/test-weekly-summary` - Test weekly summary posting
 
 ## Development
 
-### Test Mode
+For development with auto-restart on file changes:
 ```bash
-TEST_MODE=true PORT=3002 npm start
-```
-Shows what would be posted without actually posting to Nostr relays.
-
-### Safe Development Workflow
-```bash
-# Create backup
-git checkout -b backup-working-version
-git push origin backup-working-version
-
-# Create feature branch
-git checkout -b feature-name
-
-# Test changes
-TEST_MODE=true PORT=3002 npm start
-
-# Deploy when ready
-PORT=3002 npm start
+npm run dev
 ```
 
-### Available Endpoints
-- `GET /health` - Health check
-- `POST /helipad-webhook` - Main webhook receiver
-- `GET /test-daily-summary` - Post test daily summary
+## Monitoring Features
+
+### Status Dashboard
+The dashboard provides a comprehensive overview:
+- Process status and health
+- System resource usage
+- Network connectivity
+- Quick action buttons
+
+### Auto-Restart Monitor
+- Checks bot health every minute
+- Automatically restarts on failure
+- Limits restarts to prevent infinite loops
+- Logs all restart attempts
+
+### Health Monitoring
+- Built-in health endpoint
+- Process monitoring
+- Port availability checking
+- Status file tracking
+
+## Configuration
+
+### Environment Variables
+- `NSEC`: Your Nostr private key (required)
+- `HELIPAD_WEBHOOK_TOKEN`: Optional authentication token
+- `PORT`: Webhook server port (default: 3001)
+- `TEST_MODE`: Set to 'true' for test mode (no actual Nostr posting)
+
+### Nostr Relays
+Default relays (configurable in `lib/nostr-bot.ts`):
+- wss://relay.damus.io
+- wss://relay.nostr.band
+- wss://relay.primal.net
+- wss://7srr7chyc6vlhzpc2hl6lyungvluohzrmt76kbs4kmydhrxoakkbquad.local/
+- wss://chadf.nostr1.com/
 
 ## Troubleshooting
 
-### Port Already in Use
-```bash
-# Find and kill processes using port 3002
-lsof -i :3002
-kill [PID]
+### Bot won't start
+1. Check if port 3001 is in use: `lsof -i :3001`
+2. Kill existing processes: `npm run stop`
+3. Check `.env` file configuration
+4. Verify dependencies are installed
 
-# Or use different port
-PORT=3003 npm start
+### Bot stops unexpectedly
+1. Check logs: `npm run logs`
+2. Use auto-restart: `npm run auto-restart`
+3. Check system resources
+4. Review error messages
+
+### Webhook not receiving
+1. Verify bot is running: `npm run status`
+2. Test health endpoint: `npm run health`
+3. Check webhook URL: `http://localhost:3001/helipad-webhook`
+4. Verify authentication token
+
+## Production Deployment
+
+For production environments:
+1. Use `npm run auto-restart` for automatic failure recovery
+2. Set up log rotation
+3. Monitor system resources
+4. Consider using PM2 or systemd for process management
+5. Set up alerts for downtime
+
+## Files Structure
+
+```
+BoostBot/
+├── helipad-webhook.js     # Main webhook server
+├── lib/
+│   └── nostr-bot.ts       # Nostr bot implementation
+├── scripts/
+│   ├── status.js          # Status checking script
+│   ├── stop.js            # Process stopping script
+│   ├── restart.js         # Process restart script
+│   ├── logs.js            # Log viewing script
+│   ├── auto-restart.js    # Auto-restart monitor
+│   └── dashboard.js       # Dashboard overview
+├── monitor.js             # Status monitoring
+├── package.json           # Dependencies and scripts
+└── MONITORING.md          # Detailed monitoring guide
 ```
 
-### Bot Not Posting
-1. Check Helipad webhook configuration
-2. Verify `.env` file has correct `NOSTR_BOOST_BOT_NSEC`
-3. Ensure Helipad is sending "sent boosts" not "received boosts"
-4. Check terminal logs for errors
+## Support
 
-### Missing Daily Summary
-- Daily summaries post at midnight local time
-- Use `/test-daily-summary` endpoint to preview
-- Check `daily-stats.json` file exists and has data
-
-### Split Posts Still Appearing
-- Verify 2-minute session grouping is working
-- Check terminal logs for session IDs
-- Ensure all splits have same sender/episode/podcast names
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Test thoroughly with `TEST_MODE=true`
-4. Submit a pull request
-
-## Security Notice
-
-**NEVER** commit your `.env` file to any repository. It contains your private Nostr keys. The project is configured to ignore `.env` files via `.gitignore`.
-
-## Related Projects
-
-- [Helipad](https://github.com/Podcastindex-org/helipad) - Lightning payment processor
-- [Podcast Index](https://podcastindex.org) - Podcast discovery and metadata
-- [Podcasting 2.0](https://podcasting2.org) - Next generation podcasting
+For detailed monitoring instructions, see [MONITORING.md](MONITORING.md).
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT

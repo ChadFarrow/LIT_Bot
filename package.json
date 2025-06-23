@@ -6,6 +6,16 @@
   "type": "module",
   "scripts": {
     "start": "tsx helipad-webhook.js",
+    "dev": "tsx --watch helipad-webhook.js",
+    "status": "node scripts/status.js",
+    "stop": "node scripts/stop.js",
+    "restart": "node scripts/restart.js",
+    "logs": "node scripts/logs.js",
+    "health": "curl -s http://localhost:3001/health || echo 'Bot is not running'",
+    "monitor": "node monitor.js",
+    "watch": "while true; do node monitor.js; sleep 30; done",
+    "auto-restart": "node scripts/auto-restart.js",
+    "dashboard": "node scripts/dashboard.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
