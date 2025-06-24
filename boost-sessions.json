@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "sessionId": "14589371-ChadF-nameless-nameless",
+    "largestSplit": {
+      "index": 136118,
+      "time": 1750724630,
+      "value_msat": 20000,
+      "value_msat_total": 21000,
+      "action": 2,
+      "sender": "ChadF",
+      "app": "LN Beats",
+      "message": "",
+      "podcast": "nameless",
+      "episode": "nameless",
+      "tlv": "{\"podcast\":\"nameless\",\"feedID\":7380161,\"guid\":\"d8650395-2a35-5838-be6a-fd454e8aa0e0\",\"episode_guid\":\"ab30278f-b165-408d-aba2-0514f9045c80\",\"episode\":\"nameless\",\"ts\":null,\"action\":\"boost\",\"app_name\":\"LN Beats\",\"value_msat\":20000,\"value_msat_total\":21000,\"sender_name\":\"ChadF\",\"name\":\"Hurling Pixels via Wavlake\"}",
+      "remote_podcast": null,
+      "remote_episode": null,
+      "reply_sent": false,
+      "custom_key": null,
+      "custom_value": null,
+      "payment_info": {
+        "payment_hash": "6fbcac92d276acb566398851fe14f5c2550b2313a12c1c76d1b2d6d6437c7e03",
+        "pubkey": "02682b7c86f474d082fa9d274c3751291225448468691784c6f112187de975a8c2",
+        "custom_key": 0,
+        "custom_value": "",
+        "fee_msat": 1000,
+        "reply_to_idx": null
+      }
+    },
+    "expiresAt": 1750724662233
+  }
+]

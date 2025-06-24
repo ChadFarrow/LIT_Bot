@@ -2,13 +2,78 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import path from 'path';
+import { exec, execSync } from 'child_process';
+import { promisify } from 'util';
 import { announceHelipadPayment, postTestDailySummary, postTestWeeklySummary } from './lib/nostr-bot.ts';
 import { logger } from './lib/logger.js';
+
+const execAsync = promisify(exec);
+
+// Store active monitor connections
+const monitorClients = new Set();
+
+// Monitor functions (adapted from monitor.js)
+function getProcessInfo() {
+  try {
+    const output = execSync('ps aux | grep -E "(helipad-webhook|tsx.*helipad)" | grep -v grep', { encoding: 'utf8' });
+    return output.trim().split('\n').filter(line => line.trim());
+  } catch (error) {
+    logger.debug('getProcessInfo error:', error.message);
+    return [];
+  }
+}
+
+function getHealthStatus(port = 3333) {
+  try {
+    const response = execSync(`curl -s -w "%{http_code}" http://localhost:${port}/health`, { encoding: 'utf8' });
+    const statusCode = response.slice(-3);
+    const body = response.slice(0, -3);
+    return { statusCode: parseInt(statusCode), body: body.trim(), timestamp: new Date().toISOString() };
+  } catch (error) {
+    logger.debug('getHealthStatus error:', error.message);
+    return { statusCode: 0, body: 'Connection failed', timestamp: new Date().toISOString() };
+  }
+}
+
+function getMonitorStatus() {
+  const processes = getProcessInfo();
+  const health = getHealthStatus(process.env.PORT || 3333);
+  
+  const status = {
+    timestamp: new Date().toISOString(),
+    isRunning: processes.length > 0,
+    processCount: processes.length,
+    health: health,
+    uptime: null
+  };
+  
+  if (processes.length > 0) {
+    const parts = processes[0].split(/\s+/);
+    status.uptime = parts[8]; // Process time
+  }
+  
+  return status;
+}
+
+function broadcastToMonitorClients(data) {
+  monitorClients.forEach(client => {
+    try {
+      client.write(`data: ${JSON.stringify(data)}\n\n`);
+    } catch (error) {
+      // Remove dead connections
+      monitorClients.delete(client);
+    }
+  });
+}
 
 dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
+
+// Serve static files from public directory
+app.use(express.static('public'));
 
 const AUTH_TOKEN = process.env.HELIPAD_WEBHOOK_TOKEN;
 
@@ -39,11 +104,42 @@ app.post('/helipad-webhook', authenticate, async (req, res) => {
     const event = req.body;
     logger.info('Received Helipad webhook', { event });
     
+    // Broadcast webhook activity to live monitors
+    const satsAmount = Math.floor(event.value_msat_total / 1000);
+    const actionName = {
+      0: 'Error',
+      1: 'Stream',
+      2: 'Boost',
+      3: 'Unknown',
+      4: 'Auto Boost'
+    }[event.action] || 'Unknown';
+    
+    const activityMessage = `💰 ${actionName}: ${satsAmount} sats from ${event.sender || 'Unknown'} → ${event.podcast || 'Unknown'}${event.message ? ` | "${event.message.substring(0, 50)}${event.message.length > 50 ? '...' : ''}"` : ''}`;
+    
+    broadcastToMonitorClients({
+      timestamp: new Date().toISOString(),
+      message: activityMessage,
+      type: 'activity',
+      action: event.action,
+      amount: satsAmount,
+      sender: event.sender,
+      podcast: event.podcast,
+      episode: event.episode
+    });
+    
     await announceHelipadPayment(event);
     
     res.status(200).send('OK');
   } catch (err) {
     logger.error('Error posting to Nostr', { error: err.message, stack: err.stack });
+    
+    // Broadcast error to live monitors
+    broadcastToMonitorClients({
+      timestamp: new Date().toISOString(),
+      message: `❌ Error processing webhook: ${err.message}`,
+      type: 'error'
+    });
+    
     res.status(500).send('Error');
   }
 });
@@ -77,9 +173,181 @@ app.get('/test-weekly-summary', async (req, res) => {
   }
 });
 
+// Bot management endpoints
+app.post('/manage/:action', async (req, res) => {
+  const { action } = req.params;
+  logger.info(`Management action requested: ${action}`);
+  
+  try {
+    let result;
+    const workingDir = process.cwd(); // Get current working directory
+    
+    switch (action) {
+      case 'status':
+        result = await execAsync('npm run status', { cwd: workingDir });
+        break;
+        
+      case 'restart':
+        result = await execAsync('npm run restart', { cwd: workingDir });
+        break;
+        
+      case 'stop':
+        result = await execAsync('npm run stop', { cwd: workingDir });
+        break;
+        
+      case 'logs':
+        // Try multiple log locations
+        try {
+          result = await execAsync('tail -n 50 logs/helipad-webhook.log', { cwd: workingDir });
+        } catch (logError) {
+          try {
+            result = await execAsync('tail -n 50 logs/launch-agent.log', { cwd: workingDir });
+          } catch (launchError) {
+            result = { stdout: 'No log files found in logs/ directory', stderr: '' };
+          }
+        }
+        break;
+        
+      case 'service-status':
+        result = await execAsync('npm run service-status', { cwd: workingDir });
+        break;
+        
+      case 'health':
+        result = await execAsync('npm run health', { cwd: workingDir });
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          error: `Unknown action: ${action}`
+        });
+    }
+    
+    res.json({
+      success: true,
+      output: result.stdout || result.stderr || 'Command executed successfully'
+    });
+    
+  } catch (error) {
+    logger.error(`Management action failed: ${action}`, { error: error.message });
+    res.json({
+      success: false,
+      error: error.message,
+      output: error.stdout || error.stderr || 'Command failed'
+    });
+  }
+});
+
+// Live monitor endpoint using Server-Sent Events
+app.get('/monitor/live', (req, res) => {
+  // Set up SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  // Add client to the set
+  monitorClients.add(res);
+  logger.info('Live monitor client connected', { clientCount: monitorClients.size });
+
+  // Send initial status
+  try {
+    const initialStatus = getMonitorStatus();
+    logger.info('Sending initial monitor status', initialStatus);
+    
+    const statusMessage = {
+      timestamp: initialStatus.timestamp,
+      message: `BoostBot Status: ${initialStatus.isRunning ? 'Running' : 'Stopped'} (${initialStatus.processCount} processes, Health: ${initialStatus.health.statusCode === 200 ? 'OK' : 'Failed'})`,
+      type: 'status',
+      isRunning: initialStatus.isRunning,
+      processCount: initialStatus.processCount,
+      health: initialStatus.health,
+      uptime: initialStatus.uptime
+    };
+    
+    res.write(`data: ${JSON.stringify(statusMessage)}\n\n`);
+  } catch (error) {
+    logger.error('Error getting initial monitor status:', error);
+    res.write(`data: ${JSON.stringify({
+      timestamp: new Date().toISOString(),
+      message: 'Error getting initial status: ' + error.message,
+      type: 'error'
+    })}\n\n`);
+  }
+
+  // Handle client disconnect
+  req.on('close', () => {
+    monitorClients.delete(res);
+    logger.info('Live monitor client disconnected', { clientCount: monitorClients.size });
+  });
+});
+
+// Start periodic monitoring when server starts
+let monitorInterval;
+let lastStatus = null;
+
+function startPeriodicMonitoring() {
+  monitorInterval = setInterval(() => {
+    if (monitorClients.size === 0) return; // No clients, skip monitoring
+    
+    const currentStatus = getMonitorStatus();
+    
+    // Check for status changes
+    let statusChanged = false;
+    let changeMessage = '';
+    
+    if (lastStatus) {
+      if (lastStatus.isRunning !== currentStatus.isRunning) {
+        statusChanged = true;
+        if (currentStatus.isRunning) {
+          changeMessage = '🎉 BoostBot has started!';
+        } else {
+          changeMessage = '⚠️ BoostBot has stopped!';
+        }
+      } else if (lastStatus.processCount !== currentStatus.processCount) {
+        statusChanged = true;
+        changeMessage = `Process count changed: ${lastStatus.processCount} → ${currentStatus.processCount}`;
+      } else if (lastStatus.health.statusCode !== currentStatus.health.statusCode) {
+        statusChanged = true;
+        changeMessage = `Health status changed: ${lastStatus.health.statusCode} → ${currentStatus.health.statusCode}`;
+      }
+    }
+    
+    // Broadcast status update
+    const statusMessage = `Status: ${currentStatus.isRunning ? 'Running' : 'Stopped'} | Processes: ${currentStatus.processCount} | Health: ${currentStatus.health.statusCode === 200 ? 'OK' : 'Failed'}${currentStatus.uptime ? ` | Uptime: ${currentStatus.uptime}` : ''}`;
+    
+    broadcastToMonitorClients({
+      timestamp: currentStatus.timestamp,
+      message: statusMessage,
+      type: 'status',
+      isRunning: currentStatus.isRunning,
+      processCount: currentStatus.processCount,
+      health: currentStatus.health,
+      uptime: currentStatus.uptime
+    });
+    
+    // Broadcast status change if any
+    if (statusChanged) {
+      broadcastToMonitorClients({
+        timestamp: currentStatus.timestamp,
+        message: changeMessage,
+        type: currentStatus.isRunning ? 'info' : 'warning'
+      });
+    }
+    
+    lastStatus = currentStatus;
+  }, 5000); // Update every 5 seconds
+}
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   logger.info(`Helipad webhook receiver started`, { port: PORT });
   logger.info(`Webhook URL: http://localhost:${PORT}/helipad-webhook`);
   logger.info(`Health check: http://localhost:${PORT}/health`);
+  logger.info(`Management UI: http://localhost:${PORT}/`);
+  
+  // Start periodic monitoring
+  startPeriodicMonitoring();
 }); 

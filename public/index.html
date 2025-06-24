@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoostBot Management</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        button {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-primary { background: #007AFF; color: white; }
+        .btn-success { background: #34C759; color: white; }
+        .btn-warning { background: #FF9500; color: white; }
+        .btn-danger { background: #FF3B30; color: white; }
+        .btn-info { background: #5AC8FA; color: white; }
+        .btn-secondary { background: #8E8E93; color: white; }
+        
+        .status-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .status-display h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .output {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-running { background: #34C759; }
+        .status-stopped { background: #FF3B30; }
+        .status-unknown { background: #8E8E93; }
+        .live-monitor {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .monitor-line {
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        .monitor-timestamp {
+            color: #888;
+            margin-right: 10px;
+        }
+        .monitor-status-running {
+            color: #00ff00;
+        }
+        .monitor-status-stopped {
+            color: #ff4444;
+        }
+        .monitor-warning {
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 BoostBot Management</h1>
+        
+        <div class="button-grid">
+            <button class="btn-success" onclick="performAction('status')">
+                📊 Check Status
+            </button>
+            <button class="btn-primary" onclick="performAction('restart')">
+                🔄 Restart Bot
+            </button>
+            <button class="btn-danger" onclick="performAction('stop')">
+                ⏹️ Stop Bot
+            </button>
+            <button class="btn-warning" onclick="performAction('logs')">
+                📋 View Logs
+            </button>
+            <button class="btn-info" onclick="performAction('service-status')">
+                🔧 Service Status
+            </button>
+            <button class="btn-secondary" onclick="performAction('health')">
+                💚 Health Check
+            </button>
+            <button class="btn-info" onclick="toggleLiveMonitor()" id="liveMonitorBtn">
+                📊 Start Live Monitor
+            </button>
+        </div>
+
+        <div class="status-display" id="statusDisplay" style="display: none;">
+            <h3 id="statusTitle">Status</h3>
+            <div id="statusContent" class="output"></div>
+        </div>
+
+        <div class="status-display" id="liveMonitorDisplay" style="display: none;">
+            <h3 id="liveMonitorTitle">🔴 Live BoostBot Monitor</h3>
+            <div id="liveMonitorContent" class="live-monitor"></div>
+        </div>
+    </div>
+
+    <script>
+        async function performAction(action) {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            // Show loading state
+            button.disabled = true;
+            button.innerHTML = '<div class="loading"></div>' + originalText.split(' ').slice(1).join(' ');
+            
+            const statusDisplay = document.getElementById('statusDisplay');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusContent = document.getElementById('statusContent');
+            
+            statusDisplay.style.display = 'block';
+            statusTitle.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)} - Running...`;
+            statusContent.textContent = 'Executing command...';
+            
+            try {
+                const response = await fetch(`/manage/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                statusTitle.innerHTML = `${getActionIcon(action)} ${action.charAt(0).toUpperCase() + action.slice(1)} - ${data.success ? 'Success' : 'Error'}`;
+                statusContent.textContent = data.output || data.error || 'No output';
+                
+                // Auto-scroll to bottom
+                statusContent.scrollTop = statusContent.scrollHeight;
+                
+            } catch (error) {
+                statusTitle.innerHTML = `❌ ${action.charAt(0).toUpperCase() + action.slice(1)} - Error`;
+                statusContent.textContent = `Error: ${error.message}`;
+            } finally {
+                // Restore button
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+        
+        function getActionIcon(action) {
+            const icons = {
+                'status': '📊',
+                'restart': '🔄',
+                'stop': '⏹️',
+                'logs': '📋',
+                'service-status': '🔧',
+                'health': '💚'
+            };
+            return icons[action] || '🤖';
+        }
+        
+        // Live monitor functionality
+        let eventSource = null;
+        let isMonitoring = false;
+        
+        function toggleLiveMonitor() {
+            const button = document.getElementById('liveMonitorBtn');
+            const display = document.getElementById('liveMonitorDisplay');
+            const title = document.getElementById('liveMonitorTitle');
+            const content = document.getElementById('liveMonitorContent');
+            
+            if (!isMonitoring) {
+                // Start monitoring
+                isMonitoring = true;
+                button.innerHTML = '⏹️ Stop Live Monitor';
+                button.className = 'btn-danger';
+                display.style.display = 'block';
+                title.innerHTML = '🟢 Live BoostBot Monitor - Connected';
+                content.innerHTML = 'Connecting to live monitor...\n';
+                
+                // Start Server-Sent Events connection
+                eventSource = new EventSource('/monitor/live');
+                
+                eventSource.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    addMonitorLine(data);
+                };
+                
+                eventSource.onerror = function(event) {
+                    title.innerHTML = '🔴 Live BoostBot Monitor - Connection Error';
+                    addMonitorLine({
+                        timestamp: new Date().toISOString(),
+                        message: 'Connection lost. Retrying...',
+                        type: 'error'
+                    });
+                };
+                
+            } else {
+                // Stop monitoring
+                stopLiveMonitor();
+            }
+        }
+        
+        function stopLiveMonitor() {
+            const button = document.getElementById('liveMonitorBtn');
+            const title = document.getElementById('liveMonitorTitle');
+            
+            isMonitoring = false;
+            button.innerHTML = '📊 Start Live Monitor';
+            button.className = 'btn-info';
+            title.innerHTML = '🔴 Live BoostBot Monitor - Disconnected';
+            
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            
+            addMonitorLine({
+                timestamp: new Date().toISOString(),
+                message: 'Monitor stopped by user',
+                type: 'info'
+            });
+        }
+        
+        function addMonitorLine(data) {
+            const content = document.getElementById('liveMonitorContent');
+            const timestamp = new Date(data.timestamp).toLocaleTimeString();
+            
+            let statusClass = '';
+            let statusIcon = '';
+            
+            if (data.type === 'status') {
+                statusClass = data.isRunning ? 'monitor-status-running' : 'monitor-status-stopped';
+                statusIcon = data.isRunning ? '✅' : '❌';
+            } else if (data.type === 'error') {
+                statusClass = 'monitor-status-stopped';
+                statusIcon = '❌';
+            } else if (data.type === 'warning') {
+                statusClass = 'monitor-warning';
+                statusIcon = '⚠️';
+            } else if (data.type === 'activity') {
+                statusClass = 'monitor-status-running';
+                statusIcon = '💰';
+            } else if (data.type === 'info') {
+                statusClass = '';
+                statusIcon = 'ℹ️';
+            } else {
+                statusIcon = '📊';
+            }
+            
+            const line = document.createElement('div');
+            line.className = 'monitor-line';
+            line.innerHTML = `<span class="monitor-timestamp">[${timestamp}]</span>${statusIcon} <span class="${statusClass}">${data.message}</span>`;
+            
+            content.appendChild(line);
+            
+            // Auto-scroll to bottom
+            content.scrollTop = content.scrollHeight;
+            
+            // Keep only last 100 lines
+            while (content.children.length > 100) {
+                content.removeChild(content.firstChild);
+            }
+        }
+        
+        // Auto-refresh status every 30 seconds when status is visible
+        setInterval(() => {
+            const statusDisplay = document.getElementById('statusDisplay');
+            if (statusDisplay.style.display !== 'none') {
+                // Auto-refresh can be added here if needed
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
