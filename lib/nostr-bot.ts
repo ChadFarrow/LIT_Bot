@@ -792,10 +792,28 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     scheduleHourlySave();
   }
 
-  // Only continue with individual boost posts for action === 2
+  // Only continue with individual boost posts for action === 2 (boosts)
   if (event.action !== 2) {
     return; // Skip individual posts for streams
   }
+
+  // Only post boosts that were SENT (not received)
+  // Sent boosts typically have payment fees, received boosts don't
+  if (!event.payment_info || !event.payment_info.fee_msat || event.payment_info.fee_msat <= 0) {
+    logger.info(`Skipping received boost (no outgoing fees)`, { 
+      sender: event.sender, 
+      amount: event.value_msat_total / 1000,
+      hasFee: !!event.payment_info?.fee_msat,
+      feeAmount: event.payment_info?.fee_msat || 0
+    });
+    return; // Skip received boosts - only post sent boosts
+  }
+
+  logger.info(`Processing sent boost (has outgoing fees)`, { 
+    sender: event.sender, 
+    amount: event.value_msat_total / 1000,
+    feeAmount: event.payment_info.fee_msat
+  });
 
   // Group splits by a wider time window to catch all splits from the same boost
   const timeWindow = Math.floor(event.time / 120); // 2-minute windows to prevent split sessions
