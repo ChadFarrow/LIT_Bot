@@ -338,9 +338,21 @@
                 const healthData = await healthResponse.json();
                 updateStatCard('healthStatus', healthData.success ? '✅ Healthy' : '❌ Issues');
 
-                // Update uptime and last activity with mock data for now
-                updateStatCard('uptimeStatus', '🕐 2h 15m');
-                updateStatCard('lastActivity', '📥 2 min ago');
+                // Update uptime with real data
+                const uptimeResponse = await fetch('/uptime');
+                const uptimeData = await uptimeResponse.json();
+                const uptimeDisplay = uptimeData.isRunning ? 
+                    `🕐 ${uptimeData.uptime || 'Unknown'}` : 
+                    '⏹️ Stopped';
+                updateStatCard('uptimeStatus', uptimeDisplay);
+
+                // Update last activity with real data
+                const activityResponse = await fetch('/last-activity');
+                const activityData = await activityResponse.json();
+                const activityDisplay = activityData.type === 'none' ? 
+                    '📭 No activity' : 
+                    `📥 ${activityData.timeAgo}`;
+                updateStatCard('lastActivity', activityDisplay);
 
             } catch (error) {
                 updateStatCard('botStatus', '❓ Unknown');

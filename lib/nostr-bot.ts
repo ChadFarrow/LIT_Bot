@@ -675,6 +675,14 @@ function scheduleWeeklySummary(): void {
 export async function postTestDailySummary(): Promise<void> {
   console.log(`📊 Posting test daily summary...`);
   
+  // Save current real data
+  const originalStats = {
+    streamSats: dailyStats.streamSats,
+    boostSats: dailyStats.boostSats,
+    streamShows: new Set(dailyStats.streamShows),
+    boostShows: new Set(dailyStats.boostShows)
+  };
+  
   // Add temporary test data to see the format
   dailyStats.streamSats = 1250;
   dailyStats.boostSats = 500;
@@ -688,13 +696,28 @@ export async function postTestDailySummary(): Promise<void> {
   console.log(`Test shows: ${Array.from(dailyStats.streamShows).join(', ')} | ${Array.from(dailyStats.boostShows).join(', ')}`);
   await postDailySummary();
   
-  // Reset to real data after test
-  await resetDailyStats();
+  // Restore original data without saving test data to weekly stats
+  dailyStats.streamSats = originalStats.streamSats;
+  dailyStats.boostSats = originalStats.boostSats;
+  dailyStats.streamShows = originalStats.streamShows;
+  dailyStats.boostShows = originalStats.boostShows;
+  
+  // Save the restored real data
+  await saveDailyStats();
 }
 
 // Test function to manually post current weekly summary
 export async function postTestWeeklySummary(): Promise<void> {
   console.log(`📊 Posting test weekly summary...`);
+  
+  // Save current real data
+  const originalWeeklyStats = {
+    streamSats: weeklyStats.streamSats,
+    boostSats: weeklyStats.boostSats,
+    streamShows: new Set(weeklyStats.streamShows),
+    boostShows: new Set(weeklyStats.boostShows),
+    dailyBreakdown: [...weeklyStats.dailyBreakdown]
+  };
   
   // Add some test data
   weeklyStats.streamSats = 8500;
@@ -715,8 +738,15 @@ export async function postTestWeeklySummary(): Promise<void> {
   
   await postWeeklySummary();
   
-  // Reset to real data after test
-  await resetWeeklyStats();
+  // Restore original data
+  weeklyStats.streamSats = originalWeeklyStats.streamSats;
+  weeklyStats.boostSats = originalWeeklyStats.boostSats;
+  weeklyStats.streamShows = originalWeeklyStats.streamShows;
+  weeklyStats.boostShows = originalWeeklyStats.boostShows;
+  weeklyStats.dailyBreakdown = originalWeeklyStats.dailyBreakdown;
+  
+  // Save the restored real data
+  await saveWeeklyStats();
 }
 
 export async function announceHelipadPayment(event: HelipadPaymentEvent): Promise<void> {

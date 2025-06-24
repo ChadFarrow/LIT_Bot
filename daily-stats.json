@@ -1,9 +1,7 @@
 {
   "date": "2025-06-24",
   "streamSats": 0,
-  "boostSats": 100,
+  "boostSats": 0,
   "streamShows": [],
-  "boostShows": [
-    "Lightning Thrashes"
-  ]
+  "boostShows": []
 }

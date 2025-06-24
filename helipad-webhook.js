@@ -13,6 +13,16 @@ const execAsync = promisify(exec);
 // Store active monitor connections
 const monitorClients = new Set();
 
+// Store last activity information
+let lastActivityData = {
+  timestamp: null,
+  message: 'No recent activity',
+  type: 'none'
+};
+
+// Store bot start time
+const botStartTime = new Date();
+
 // Monitor functions (adapted from monitor.js)
 function getProcessInfo() {
   try {
@@ -45,12 +55,31 @@ function getMonitorStatus() {
     isRunning: processes.length > 0,
     processCount: processes.length,
     health: health,
-    uptime: null
+    uptime: null,
+    uptimeSeconds: null
   };
   
   if (processes.length > 0) {
-    const parts = processes[0].split(/\s+/);
-    status.uptime = parts[8]; // Process time
+    // Calculate uptime based on bot start time
+    const now = new Date();
+    const uptimeMs = now - botStartTime;
+    const totalSeconds = Math.floor(uptimeMs / 1000);
+    
+    status.uptimeSeconds = totalSeconds;
+    
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    if (days > 0) {
+      status.uptime = `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      status.uptime = `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      status.uptime = `${minutes}m`;
+    } else {
+      status.uptime = `${totalSeconds}s`;
+    }
   }
   
   return status;
@@ -116,6 +145,18 @@ app.post('/helipad-webhook', authenticate, async (req, res) => {
     
     const activityMessage = `💰 ${actionName}: ${satsAmount} sats from ${event.sender || 'Unknown'} → ${event.podcast || 'Unknown'}${event.message ? ` | "${event.message.substring(0, 50)}${event.message.length > 50 ? '...' : ''}"` : ''}`;
     
+    // Update last activity
+    lastActivityData = {
+      timestamp: new Date().toISOString(),
+      message: activityMessage,
+      type: 'activity',
+      action: event.action,
+      amount: satsAmount,
+      sender: event.sender,
+      podcast: event.podcast,
+      episode: event.episode
+    };
+    
     broadcastToMonitorClients({
       timestamp: new Date().toISOString(),
       message: activityMessage,
@@ -147,6 +188,47 @@ app.post('/helipad-webhook', authenticate, async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('Webhook receiver is running');
+});
+
+// Uptime endpoint
+app.get('/uptime', (req, res) => {
+  const status = getMonitorStatus();
+  res.json({
+    uptime: status.uptime,
+    uptimeSeconds: status.uptimeSeconds,
+    isRunning: status.isRunning,
+    processCount: status.processCount,
+    timestamp: status.timestamp
+  });
+});
+
+// Last activity endpoint
+app.get('/last-activity', (req, res) => {
+  const now = new Date();
+  let timeAgo = 'No activity';
+  
+  if (lastActivityData.timestamp) {
+    const activityTime = new Date(lastActivityData.timestamp);
+    const diffMs = now - activityTime;
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffDays > 0) {
+      timeAgo = `${diffDays}d ago`;
+    } else if (diffHours > 0) {
+      timeAgo = `${diffHours}h ago`;
+    } else if (diffMinutes > 0) {
+      timeAgo = `${diffMinutes}m ago`;
+    } else {
+      timeAgo = 'Just now';
+    }
+  }
+  
+  res.json({
+    ...lastActivityData,
+    timeAgo: timeAgo
+  });
 });
 
 // Test daily summary endpoint
