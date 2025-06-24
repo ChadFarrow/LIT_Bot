@@ -26,13 +26,13 @@ function getProcessInfo() {
 
 function getHealthStatus(port = 3333) {
   try {
-    const response = execSync(`curl -s -w "%{http_code}" http://localhost:${port}/health`, { encoding: 'utf8' });
+    const response = execSync(`curl -s -w "%{http_code}" --max-time 3 http://localhost:${port}/health`, { encoding: 'utf8' });
     const statusCode = response.slice(-3);
     const body = response.slice(0, -3);
     return { statusCode: parseInt(statusCode), body: body.trim(), timestamp: new Date().toISOString() };
   } catch (error) {
     logger.debug('getHealthStatus error:', error.message);
-    return { statusCode: 0, body: 'Connection failed', timestamp: new Date().toISOString() };
+    return { statusCode: 0, body: 'Connection failed or timed out', timestamp: new Date().toISOString() };
   }
 }
 
@@ -182,26 +182,37 @@ app.post('/manage/:action', async (req, res) => {
     let result;
     const workingDir = process.cwd(); // Get current working directory
     
+    // Helper function to add timeout to execAsync
+    const execWithTimeout = async (command, timeoutMs = 10000) => {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Command timed out')), timeoutMs);
+      });
+      
+      const execPromise = execAsync(command, { cwd: workingDir });
+      
+      return Promise.race([execPromise, timeoutPromise]);
+    };
+    
     switch (action) {
       case 'status':
-        result = await execAsync('npm run status', { cwd: workingDir });
+        result = await execWithTimeout('npm run status', 10000);
         break;
         
       case 'restart':
-        result = await execAsync('npm run restart', { cwd: workingDir });
+        result = await execWithTimeout('npm run restart', 15000);
         break;
         
       case 'stop':
-        result = await execAsync('npm run stop', { cwd: workingDir });
+        result = await execWithTimeout('npm run stop', 10000);
         break;
         
       case 'logs':
         // Try multiple log locations
         try {
-          result = await execAsync('tail -n 50 logs/helipad-webhook.log', { cwd: workingDir });
+          result = await execWithTimeout('tail -n 50 logs/helipad-webhook.log', 5000);
         } catch (logError) {
           try {
-            result = await execAsync('tail -n 50 logs/launch-agent.log', { cwd: workingDir });
+            result = await execWithTimeout('tail -n 50 logs/launch-agent.log', 5000);
           } catch (launchError) {
             result = { stdout: 'No log files found in logs/ directory', stderr: '' };
           }
@@ -209,11 +220,11 @@ app.post('/manage/:action', async (req, res) => {
         break;
         
       case 'service-status':
-        result = await execAsync('npm run service-status', { cwd: workingDir });
+        result = await execWithTimeout('npm run service-status', 10000);
         break;
         
       case 'health':
-        result = await execAsync('npm run health', { cwd: workingDir });
+        result = await execWithTimeout('npm run health', 5000);
         break;
         
       default:

@@ -13,7 +13,7 @@
     "logs": "node scripts/logs.js",
     "monitor-logs": "node scripts/monitor-logs.js",
     "monitor-logs-simple": "node scripts/monitor-logs-simple.js",
-    "health": "curl -s http://localhost:3333/health || echo 'Bot is not running'",
+    "health": "curl -s --max-time 5 http://localhost:3333/health || echo 'Bot is not running'",
     "monitor": "node monitor.js",
     "watch": "while true; do node monitor.js; sleep 30; done",
     "auto-restart": "node scripts/auto-restart.js",
