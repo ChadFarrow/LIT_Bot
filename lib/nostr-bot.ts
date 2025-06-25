@@ -264,8 +264,22 @@ interface WeeklyStats {
   dailyBreakdown: { date: string; streamSats: number; boostSats: number }[];
 }
 
+// Supported creators tracking
+interface SupportedCreator {
+  name: string;
+  type: 'podcast' | 'musician';
+  firstSupported: string; // ISO date
+  lastSupported: string; // ISO date
+  totalBoosts: number;
+  totalSats: number;
+}
+
+interface SupportedCreators {
+  [key: string]: SupportedCreator;
+}
+
 let dailyStats: DailyStats = {
-  date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+  date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), // YYYY-MM-DD in Eastern Time
   streamSats: 0,
   boostSats: 0,
   streamShows: new Set(),
@@ -288,6 +302,8 @@ let weeklyStats: WeeklyStats = {
   boostShows: new Set(),
   dailyBreakdown: []
 };
+
+let supportedCreators: SupportedCreators = {};
 
 // Daily and weekly summary timeouts
 let dailySummaryTimeout: NodeJS.Timeout | null = null;
@@ -315,6 +331,7 @@ function scheduleHourlySave(): void {
 const DAILY_STATS_FILE = path.join(process.cwd(), 'daily-stats.json');
 const WEEKLY_STATS_FILE = path.join(process.cwd(), 'weekly-stats.json');
 const BOOST_SESSIONS_FILE = path.join(process.cwd(), 'boost-sessions.json');
+const SUPPORTED_CREATORS_FILE = path.join(process.cwd(), 'supported-creators.json');
 
 // Load daily stats from file
 async function loadDailyStats(): Promise<void> {
@@ -398,6 +415,53 @@ async function saveWeeklyStats(): Promise<void> {
   } catch (error) {
     console.error(`❌ Failed to save weekly stats:`, error);
   }
+}
+
+// Load supported creators from file
+async function loadSupportedCreators(): Promise<void> {
+  try {
+    const data = await fs.readFile(SUPPORTED_CREATORS_FILE, 'utf-8');
+    supportedCreators = JSON.parse(data);
+    console.log(`📝 Loaded ${Object.keys(supportedCreators).length} supported creators`);
+  } catch (error) {
+    console.log(`📝 No previous supported creators found`);
+    supportedCreators = {};
+  }
+}
+
+// Save supported creators to file
+async function saveSupportedCreators(): Promise<void> {
+  try {
+    await fs.writeFile(SUPPORTED_CREATORS_FILE, JSON.stringify(supportedCreators, null, 2));
+  } catch (error) {
+    console.error(`❌ Failed to save supported creators:`, error);
+  }
+}
+
+// Track a supported creator
+async function trackSupportedCreator(name: string, type: 'podcast' | 'musician', satsAmount: number): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const key = `${type}:${name}`;
+  
+  if (supportedCreators[key]) {
+    // Update existing creator
+    supportedCreators[key].lastSupported = today;
+    supportedCreators[key].totalBoosts++;
+    supportedCreators[key].totalSats += satsAmount;
+  } else {
+    // Add new creator
+    supportedCreators[key] = {
+      name,
+      type,
+      firstSupported: today,
+      lastSupported: today,
+      totalBoosts: 1,
+      totalSats: satsAmount
+    };
+    console.log(`📝 Now tracking new ${type}: ${name}`);
+  }
+  
+  await saveSupportedCreators();
 }
 
 // Load boost sessions from file
@@ -488,6 +552,31 @@ async function postDailySummary(): Promise<void> {
   const streamShows = Array.from(dailyStats.streamShows);
   const boostShows = Array.from(dailyStats.boostShows);
 
+  // Get all shows you supported (streamed + boosted)
+  const allShows = [...new Set([...streamShows, ...boostShows])];
+  
+  // Build p-tags for hosts of shows you supported
+  const pTags: string[][] = [];
+  const addedPubkeys = new Set<string>();
+  
+  for (const show of allShows) {
+    const showNpubs = getShowNpubs(show);
+    for (const npub of showNpubs) {
+      try {
+        const { type, data } = nip19.decode(npub);
+        if (type === 'npub') {
+          const hexPubkey = data as string;
+          if (!addedPubkeys.has(hexPubkey)) {
+            pTags.push(['p', hexPubkey, '', 'mention']);
+            addedPubkeys.add(hexPubkey);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Failed to decode npub ${npub}:`, error);
+      }
+    }
+  }
+
   const content = `📊 Daily V4V Summary - ${dailyStats.date}
 
 🌊 Streamed: ${dailyStats.streamSats.toLocaleString()} sats
@@ -509,12 +598,13 @@ ${boostShows.length > 0 ? `🚀 Boosted:\n${boostShows.map(show => `• ${show}`
       ['t', 'valuestreaming'],
       ['t', 'boostagram'],
       ['t', 'dailysummary'],
+      ...pTags
     ],
     created_at: Math.floor(Date.now() / 1000),
   }, bot.getSecretKey());
 
   await bot.publishToRelays(nostrEvent);
-  console.log(`📊 Posted daily summary: ${dailyStats.streamSats + dailyStats.boostSats} total sats`);
+  console.log(`📊 Posted daily summary: ${dailyStats.streamSats + dailyStats.boostSats} total sats (tagged ${pTags.length} hosts)`);
 }
 
 async function resetDailyStats(): Promise<void> {
@@ -534,7 +624,7 @@ async function resetDailyStats(): Promise<void> {
   }
   
   dailyStats = {
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
     streamSats: 0,
     boostSats: 0,
     streamShows: new Set(),
@@ -616,19 +706,23 @@ function scheduleDailySummary(): void {
     clearTimeout(dailySummaryTimeout);
   }
 
-  // Calculate time until midnight EST
+  // Get current time in Eastern timezone
   const now = new Date();
+  const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   
-  // Create midnight EDT time
-  const midnightEDT = new Date();
-  midnightEDT.setUTCHours(4, 0, 0, 0); // EDT is UTC-4 (4 AM UTC = midnight EDT)
+  // Create midnight ET for today
+  const midnightET = new Date(nowET);
+  midnightET.setHours(0, 0, 0, 0);
   
-  // If it's already past midnight EDT today, schedule for tomorrow
-  if (now.getTime() >= midnightEDT.getTime()) {
-    midnightEDT.setUTCDate(midnightEDT.getUTCDate() + 1);
+  // If already past midnight, schedule for tomorrow
+  if (nowET.getTime() >= midnightET.getTime()) {
+    midnightET.setDate(midnightET.getDate() + 1);
   }
   
-  const msUntilMidnight = midnightEDT.getTime() - now.getTime();
+  // Convert back to UTC for setTimeout
+  const etOffset = now.getTime() - nowET.getTime();
+  const midnightUTC = new Date(midnightET.getTime() + etOffset);
+  const msUntilMidnight = midnightUTC.getTime() - now.getTime();
 
   dailySummaryTimeout = setTimeout(async () => {
     await postDailySummary();
@@ -636,7 +730,7 @@ function scheduleDailySummary(): void {
     scheduleDailySummary(); // Schedule next day
   }, msUntilMidnight);
 
-  console.log(`📅 Daily summary scheduled for ${midnightEDT.toLocaleString()} (midnight EDT)`);
+  console.log(`📅 Daily summary scheduled for ${midnightUTC.toLocaleString('en-US', { timeZone: 'America/New_York' })} (midnight EDT)`);
 }
 
 function scheduleWeeklySummary(): void {
@@ -769,11 +863,12 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     await loadDailyStats();
     await loadWeeklyStats();
     await loadBoostSessions();
+    await loadSupportedCreators();
   }
 
-  // Check if we need to reset daily stats (new day)
-  const currentDate = new Date().toISOString().split('T')[0];
-  if (currentDate !== dailyStats.date) {
+  // Check if we need to reset daily stats (new day in Eastern Time)
+  const currentDateET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  if (currentDateET !== dailyStats.date) {
     await postDailySummary(); // Post previous day's summary
     await resetDailyStats();
   }
@@ -806,6 +901,21 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     weeklyStats.boostSats += satsAmount;
     weeklyStats.boostShows.add(showName);
     logger.info(`Added ${satsAmount} boost sats to daily/weekly totals`);
+    
+    // Track supported creators for boosts
+    if (showName && showName !== 'Unknown') {
+      // Check if this is a music boost
+      const isMusic = event.remote_podcast && event.remote_podcast.trim() && 
+                      event.remote_episode && event.remote_episode.trim();
+      
+      if (isMusic) {
+        // Track the musician
+        await trackSupportedCreator(event.remote_podcast, 'musician', satsAmount);
+      } else {
+        // Track the podcast
+        await trackSupportedCreator(showName, 'podcast', satsAmount);
+      }
+    }
   }
   
   // Auto-save for large payments or payments with messages
@@ -844,6 +954,15 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     amount: event.value_msat_total / 1000,
     feeAmount: event.payment_info.fee_msat
   });
+
+  // Only post boosts from ChadF to avoid posting pseudonymous boosts
+  if (event.sender !== 'ChadF') {
+    logger.info(`Skipping boost from different sender`, { 
+      sender: event.sender, 
+      amount: event.value_msat_total / 1000
+    });
+    return; // Skip boosts not from ChadF
+  }
 
   // Group splits by a wider time window to catch all splits from the same boost
   const timeWindow = Math.floor(event.time / 120); // 2-minute windows to prevent split sessions
@@ -942,7 +1061,7 @@ const showToNpubMap: Record<string, string[]> = {
     'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh', // Kevin Bae
   ],
   'Ungovernable Misfits': [
-    'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpssa8jg8', // Max
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
   ],
   'UpBEATS': [
     'npub1nnkhv7scg4zxr9t6sgukyxn923ed6485ud8m7a3lurr4qd4lhv7qhrp49m', // UpBEATs
@@ -1026,7 +1145,7 @@ const nameToNpubMap: Record<string, string> = {
   'ericpp': 'npub1gfh3zdy07r37mgk4hyr0njmajapswk4ct6anc9w407uqkn39aslqqkalqc',
   'qna': 'npub15c88nc8d44gsp4658dnfu5fahswzzu8gaxm5lkuwjud068swdqfspxssvx',
   'jordan': 'npub16djxdyd6tvwhjmq7rv6rphcqlcgcnmyuyv580tw7rry0v440rrcq4ukhtp',
-  'max': 'npub1h24y6m33dekqlc78g4p55c70z6me5rwfzze8dwt2gxhs4v3qxqpssa8jg8',
+  'max': 'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r',
   'kevin bae': 'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh',
   'kevinbae': 'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh',
   
@@ -1254,6 +1373,9 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
   
   const actionText = "📤 Boost Sent!";
   const senderLabel = "👤 Sender";
+  
+  // Replace ChadF with npub for sender display
+  const senderDisplay = event.sender === 'ChadF' ? 'nostr:npub177fz5zkm87jdmf0we2nz7mm7uc2e7l64uzqrv6rvdrsg8qkrg7yqx0aaq7' : event.sender;
 
   // Parse TLV data to build show link
   let showLink = '';
@@ -1308,7 +1430,7 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
   const contentParts = [
     actionText,
     '',
-    `${senderLabel}: ${event.sender || 'Unknown'}`,
+    `${senderLabel}: ${senderDisplay || 'Unknown'}`,
   ];
 
   if (displayMessage && displayMessage.trim()) {
@@ -1347,14 +1469,15 @@ async function postBoostToNostr(event: HelipadPaymentEvent, bot: any): Promise<v
   }
 
   contentParts.push(
-    `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`,
-    appInfo
+    `💸 Amount: ${(event.value_msat_total / 1000).toLocaleString()} sats`
   );
 
   // Add show link if available
   if (showLink) {
     contentParts.push(`🎧 Listen: ${showLink}`);
   }
+  
+  contentParts.push(appInfo);
 
   contentParts.push(
     '',
