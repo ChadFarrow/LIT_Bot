@@ -1,0 +1,10 @@
+{
+  "podcast:bitpunk.fm unwound": {
+    "name": "bitpunk.fm unwound",
+    "type": "podcast",
+    "firstSupported": "2025-06-25",
+    "lastSupported": "2025-06-25",
+    "totalBoosts": 3,
+    "totalSats": 300
+  }
+}

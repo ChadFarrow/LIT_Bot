@@ -36,10 +36,8 @@ function getProcessInfo() {
 
 function getHealthStatus(port = 3333) {
   try {
-    const response = execSync(`curl -s -w "%{http_code}" --max-time 3 http://localhost:${port}/health`, { encoding: 'utf8' });
-    const statusCode = response.slice(-3);
-    const body = response.slice(0, -3);
-    return { statusCode: parseInt(statusCode), body: body.trim(), timestamp: new Date().toISOString() };
+    const response = execSync(`curl -s http://127.0.0.1:${port}/health`, { encoding: 'utf8', timeout: 5000 });
+    return { statusCode: 200, body: response.trim(), timestamp: new Date().toISOString() };
   } catch (error) {
     logger.debug('getHealthStatus error:', error.message);
     return { statusCode: 0, body: 'Connection failed or timed out', timestamp: new Date().toISOString() };
