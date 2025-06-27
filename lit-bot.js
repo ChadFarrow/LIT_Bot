@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { finalizeEvent, nip19 } from 'nostr-tools';
 import { Relay } from 'nostr-tools/relay';
 import { Client } from '@hiveio/dhive';
+import Parser from 'rss-parser';
 import { logger } from './lib/logger.js';
 
 const execAsync = promisify(exec);
@@ -214,6 +215,162 @@ class PodPingWatcher {
   }
 }
 
+// RSS Monitor for @PodcastsLive@podcastindex.social
+class MastodonRSSMonitor {
+  constructor() {
+    this.parser = new Parser();
+    this.bot = createLITBot();
+    this.processedPosts = new Set();
+    this.rssUrl = 'https://podcastindex.social/@PodcastsLive.rss';
+    this.pollInterval = 60000; // 1 minute
+  }
+
+  async start() {
+    if (!this.bot) {
+      logger.error('LIT Bot not configured for RSS monitoring');
+      return;
+    }
+
+    logger.info('Starting Mastodon RSS monitor...');
+    
+    // Initial check
+    await this.checkForNewPosts();
+    
+    // Set up polling
+    setInterval(async () => {
+      try {
+        await this.checkForNewPosts();
+      } catch (error) {
+        logger.error('RSS polling error:', error);
+      }
+    }, this.pollInterval);
+
+    logger.info(`RSS monitor started - polling every ${this.pollInterval/1000} seconds`);
+  }
+
+  async checkForNewPosts() {
+    try {
+      logger.debug('Checking RSS feed for new posts...');
+      const feed = await this.parser.parseURL(this.rssUrl);
+      
+      // Process recent posts (last 10)
+      const recentPosts = feed.items.slice(0, 10);
+      
+      for (const post of recentPosts) {
+        await this.processPost(post);
+      }
+      
+    } catch (error) {
+      logger.error('Error fetching RSS feed:', error);
+    }
+  }
+
+  async processPost(post) {
+    const postId = post.guid || post.link;
+    
+    // Skip if already processed
+    if (this.processedPosts.has(postId)) {
+      return;
+    }
+
+    // Check if this looks like a live notification
+    const content = post.title || post.contentSnippet || '';
+    if (this.isLiveNotification(content)) {
+      logger.info('Live notification detected from RSS:', { title: post.title });
+      
+      // Extract show info
+      const showInfo = this.extractShowInfo(content, post.link);
+      
+      if (showInfo) {
+        await this.postLiveNotification(showInfo);
+        this.processedPosts.add(postId);
+        
+        // Clean up old processed posts (keep last 100)
+        if (this.processedPosts.size > 100) {
+          const postsArray = Array.from(this.processedPosts);
+          this.processedPosts = new Set(postsArray.slice(-50));
+        }
+      }
+    }
+  }
+
+  isLiveNotification(content) {
+    const liveKeywords = [
+      'live now',
+      '🔴',
+      'is live',
+      'going live',
+      'streaming now',
+      'live:',
+      'live!'
+    ];
+    
+    const lowerContent = content.toLowerCase();
+    return liveKeywords.some(keyword => lowerContent.includes(keyword));
+  }
+
+  extractShowInfo(content, postUrl) {
+    try {
+      // Try to extract show name from the content
+      // Common patterns: "🔴 Show Name is live" or "Show Name - Live Now"
+      let showTitle = content
+        .replace(/🔴/g, '')
+        .replace(/\s+(is\s+)?live\s*(now)?/gi, '')
+        .replace(/\s*-\s*live\s*(now)?/gi, '')
+        .replace(/live\s*:/gi, '')
+        .trim();
+
+      // Clean up common prefixes/suffixes
+      showTitle = showTitle
+        .replace(/^(now\s+)?live:?\s*/gi, '')
+        .replace(/\s*live\s*$/gi, '')
+        .trim();
+
+      if (showTitle && showTitle.length > 2) {
+        return {
+          title: showTitle,
+          source: 'Mastodon RSS',
+          url: postUrl || 'https://podcastindex.social/@PodcastsLive'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      logger.error('Error extracting show info:', error);
+      return null;
+    }
+  }
+
+  async postLiveNotification(showInfo) {
+    if (!this.bot) return;
+
+    const sk = this.bot.getSecretKey();
+    
+    const content = `🔴 LIVE NOW!
+
+🎧 ${showInfo.title}
+📡 Source: ${showInfo.source}
+🔗 More info: ${showInfo.url}
+
+#LivePodcast #PC20 #PodcastsLive`;
+
+    const event = finalizeEvent({
+      kind: 1,
+      content,
+      tags: [
+        ['t', 'livepodcast'],
+        ['t', 'pc20'],
+        ['t', 'podcastslive'],
+        ['r', showInfo.url],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    }, sk);
+
+    await this.bot.publishToRelays(event);
+    logger.info(`Posted RSS live notification: ${showInfo.title}`);
+  }
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('LIT Bot is running');
@@ -244,4 +401,8 @@ app.listen(PORT, () => {
   // Start PodPing monitoring
   const watcher = new PodPingWatcher();
   watcher.start();
+  
+  // Start RSS monitoring
+  const rssMonitor = new MastodonRSSMonitor();
+  rssMonitor.start();
 });

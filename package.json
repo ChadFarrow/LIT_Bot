@@ -31,7 +31,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "nostr-tools": "^2.7.0",
-    "@hiveio/dhive": "^1.2.4"
+    "@hiveio/dhive": "^1.2.4",
+    "rss-parser": "^3.13.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
