@@ -129,9 +129,13 @@ class PodPingWatcher {
     logger.info('Starting PodPing watcher...');
     
     try {
+      // Get current head block and start from there
+      const props = await this.client.database.getDynamicGlobalProperties();
+      const currentBlock = props.head_block_number;
+      
       // Stream operations from Hive blockchain
       this.client.blockchain.getOperationsStream({
-        from: new Date(Date.now() - 60000), // Start from 1 minute ago
+        from: currentBlock - 10, // Start from 10 blocks ago
       }).on('data', (operation) => {
         this.handleOperation(operation);
       }).on('error', (error) => {
