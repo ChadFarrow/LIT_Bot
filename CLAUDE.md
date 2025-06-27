@@ -1,248 +1,116 @@
-# Nostr Boost Bot - Important Information
+# LIT Bot - Live Podcast Notifications
 
 ## Repository Information
-- **Main Repository**: https://github.com/Podcastindex-org/helipad
+- **Main Repository**: Forked from BoostBot
 - **Podcast Index**: https://github.com/Podcastindex-org
-- **Purpose**: Helipad webhook integration for posting boosts to Nostr
+- **Purpose**: PodPing integration for posting live podcast notifications to Nostr
 
-## Helipad Action Values
-From the Helipad documentation, webhook action field values are:
-- `0`: error
-- `1`: stream (streaming sats)
-- `2`: boost (intentional boost payments)
-- `3`: unknown
-- `4`: automated boost
+## PodPing Integration
+- **Monitors**: Hive blockchain for PodPing events
+- **Filters**: Only processes events with `reason=live`
+- **Posts**: Live notifications to Nostr when shows go live
+- **Real-time**: Notifications within ~20 seconds of going live
 
 ## Current Bot Configuration
-- **Only posts boosts**: action === 2
-- **Skips streaming sats**: action === 1
-- **Groups splits**: Posts only the largest split from each boost session
-- **Delay**: 30-second delay to collect all splits before posting
-- **Session grouping**: 60-second time windows by sender/episode/podcast
+- **Only posts live events**: reason === 'live'
+- **Monitors Hive**: Uses @hiveio/dhive for blockchain monitoring
+- **Auto-extracts titles**: Attempts to extract show names from feed URLs
+- **Runs on port 3334**: Separate from BoostBot (port 3333)
 
-## Nostr Relays
-Default relays the bot posts to:
-- `wss://relay.damus.io`
-- `wss://relay.nostr.band`
+## Nostr Configuration
+- **Environment Variable**: `LIT_BOT_NSEC` (separate from BoostBot)
+- **Default Relays**: relay.damus.io, relay.nostr.band, relay.primal.net
+- **Post Format**: Live notification with show title and feed URL
 
 ## Key Features
-- Deduplicates splits from the same boost
-- Posts only the largest recipient's split
-- Includes total boost amount in post
-- Filters out streaming payments automatically
-- Supports boosts with or without messages
-
-## Persistent Operation (macOS)
-
-### Launch Agent Setup
-The bot is now configured to run persistently using macOS launch agents:
-- **Auto-start**: Starts automatically when you log in
-- **Keep alive**: Continues running when Mac is locked or sleeping
-- **Auto-restart**: Automatically recovers from crashes
-- **Background operation**: No need to keep Terminal open
-
-### Service Management Commands
-```bash
-# Check if persistent service is running
-npm run service-status
-
-# View service logs
-npm run service-logs
-
-# Stop persistent service (if needed)
-npm run uninstall-service
-
-# Reinstall persistent service
-npm run install-service
-```
-
-### Service Details
-- **Launch Agent**: `com.boostbot.helipad`
-- **Plist Location**: `/Users/chad-mini/Library/LaunchAgents/com.boostbot.helipad.plist`
-- **Log File**: `logs/launch-agent.log`
-- **Auto-restart Script**: `scripts/auto-restart.js`
-
-### Benefits
-✅ Bot runs 24/7 without manual intervention  
-✅ Survives Mac sleep, lock, and restarts  
-✅ Automatic crash recovery  
-✅ No need to keep Terminal open  
-✅ Starts automatically when you log in  
+- Real-time PodPing monitoring via Hive blockchain
+- Automatic live podcast detection
+- Clean Nostr notifications for live shows
+- Separate identity from BoostBot
+- Health monitoring and status endpoints
 
 ## Bot Management Commands
 
 ### Starting the Bot
 ```bash
-cd /Users/chad-mini/Vibe/BoostBot
-PORT=3333 npm start
+cd /Users/chad-mini/Vibe/LIT_Bot
+PORT=3334 LIT_BOT_NSEC=your_private_key npm start
 ```
 
-### Stopping the Bot
+### Environment Variables Needed
 ```bash
-# Find running processes
-ps aux | grep -v grep | grep helipad
+# Required
+LIT_BOT_NSEC=your_private_key  # Your LIT Bot Nostr private key
 
-# Kill specific processes (replace PID with actual process ID)
-kill [PID]
-
-# Or kill all helipad processes
-pkill -f helipad-webhook
+# Optional
+PORT=3334              # Default port
+TEST_MODE=true         # For testing without posting
 ```
 
 ### Checking Bot Status
 ```bash
 # Check if bot is running
-ps aux | grep -v grep | grep helipad
+ps aux | grep -v grep | grep lit-bot
 
-# Check what's using port 3333
-lsof -i :3333
+# Check what's using port 3334
+lsof -i :3334
 
-# Check persistent service status
-npm run service-status
+# Health check
+curl http://localhost:3334/health
+
+# Status info
+curl http://localhost:3334/status
 ```
 
-### Restarting the Bot
+### Stopping the Bot
 ```bash
-# Stop all processes
-pkill -f helipad-webhook
+# Find running processes
+ps aux | grep -v grep | grep lit-bot
 
-# Wait a moment then start
-sleep 2 && cd /Users/chad-mini/Vibe/BoostBot && PORT=3333 npm start
+# Kill specific processes (replace PID with actual process ID)
+kill [PID]
+
+# Or kill all lit-bot processes
+pkill -f lit-bot
 ```
 
-### Important Notes
-- **Webhook Port**: Helipad webhook is on port 3333
-- Bot runs on port 3333 (changed from default 3001)
-- Webhook URL: `http://localhost:3333/helipad-webhook`
-- Health check: `http://localhost:3333/health`
-- Only posts boosts ≥25 sats (filters out smaller streaming payments)
-- Waits 30 seconds to collect all splits before posting largest one
-- **Persistent service**: Now runs automatically via macOS launch agent
+## Important Notes
+- **Separate Account**: Uses different Nostr account than BoostBot
+- **Port 3334**: Runs on different port to avoid conflicts
+- **PodPing Only**: Only monitors PodPing, no webhook integration
+- **Live Focus**: Only posts when shows go live (reason=live)
+- **Real-time**: Near-instant notifications via Hive blockchain monitoring
 
 ## Development Workflow
 
 ### Safe Development Process
-1. **Create a backup branch**: `git checkout -b backup-working-version`
-2. **Create development branch**: `git checkout -b feature-new-post-format`
-3. **Test changes locally** before deploying
-4. **Use test mode** for development (see below)
+1. **Test Mode**: Set `TEST_MODE=true` to log without posting
+2. **Monitor Logs**: Watch console for PodPing events
+3. **Test with Live Shows**: Verify notifications work
 
 ### Test Mode Setup
-Create a test configuration to avoid posting to live relays during development:
 ```bash
 # Set test environment variable
 export TEST_MODE=true
 
 # Start bot in test mode
-TEST_MODE=true PORT=3333 npm start
+TEST_MODE=true PORT=3334 LIT_BOT_NSEC=your_private_key npm start
 ```
 
-### Quick Rollback
-If something breaks:
-```bash
-# Stop the bot
-pkill -f helipad-webhook
+### Post Format
+When a show goes live, LIT_Bot posts:
+```
+🔴 LIVE NOW!
 
-# Switch back to working version
-git checkout backup-working-version
+🎧 [Show Title]
+📻 Tune in now: [Feed URL]
 
-# Restart bot
-PORT=3333 npm start
+#LivePodcast #PC20 #PodPing
 ```
 
-### Starting Development Session
-```bash
-# Stop any running bot
-pkill -f helipad-webhook
-
-# Wait a moment
-sleep 2
-
-# Start in test mode on development branch
-TEST_MODE=true PORT=3333 npm start
-```
-
-### Port Already in Use Fix
-If you get "EADDRINUSE" error:
-```bash
-# Kill all helipad processes
-pkill -f helipad-webhook
-
-# Wait and try again
-sleep 2 && TEST_MODE=true PORT=3333 npm start
-```
-
-### Current Branch Status
-- **backup-working-version**: Safe working copy pushed to GitHub
-- **improve-nostr-posts**: Development branch for experimenting
-- **main**: Original branch
-
-### Test Mode Features
-When `TEST_MODE=true`:
-- ✅ Processes webhooks normally
-- ✅ Shows what would be posted (content, tags, relays)
-- ❌ Does NOT actually post to Nostr relays
-- 🧪 Logs start with "TEST MODE" indicator
-
-## Recent Enhancements Completed
-
-### Persistent Operation Setup (January 2025)
-✅ **macOS Launch Agent** - Created system service for 24/7 operation  
-✅ **Auto-start on Login** - Bot starts automatically when you log in  
-✅ **Sleep/Lock Survival** - Continues running when Mac is locked or sleeping  
-✅ **Auto-restart on Crashes** - Automatically recovers from failures  
-✅ **Background Operation** - No need to keep Terminal open  
-✅ **Comprehensive Logging** - All activity logged to `logs/launch-agent.log`  
-
-### Implementation Details
-- **Launch Agent Script**: `scripts/install-launch-agent.js`
-- **Setup Script**: `setup-persistent-bot.sh`
-- **Service Label**: `com.boostbot.helipad`
-- **Plist Location**: `/Users/chad-mini/Library/LaunchAgents/com.boostbot.helipad.plist`
-- **Auto-restart Monitor**: Uses existing `scripts/auto-restart.js`
-
-### New Commands Added
-```bash
-npm run install-service    # Install persistent service
-npm run service-status     # Check service status
-npm run service-logs       # View service logs
-npm run uninstall-service  # Remove service
-./setup-persistent-bot.sh  # Guided setup
-```
-
-### Enhanced Nostr Post Features (June 2025)
-✅ **Fixed split spam** - Only posts largest split per boost session  
-✅ **Blocked streaming sats** - Filters out payments under 25 sats  
-✅ **Added show links** - Reliable Podcast Index links with app chooser  
-✅ **Safe development** - Test mode + git branches for future changes  
-✅ **Clean posts** - Professional formatting with all relevant info  
-
-### Current Post Format
-```
-📤 Boost Sent!
-
-👤 Sender: ChadF
-💬 Message: [boost message if present]
-🎧 Podcast: Lightning Thrashes
-📻 Episode: 94 - Lightning Thrashes
-💸 Amount: 333 sats
-📱 App: CurioCaster
-🕒 Time: [timestamp]
-🎧 Listen: https://podcastindex.org/podcast/6602332
-
-#Boostagram #Podcasting20 #V4V
-```
-
-### Successful Git Workflow Used
-1. Created `backup-working-version` branch (pushed to GitHub)
-2. Created `improve-nostr-posts` development branch
-3. Used `TEST_MODE=true` for safe testing
-4. Committed final working version
-
-### Key Technical Details
-- **Session grouping**: 60-second time windows by sender/episode/podcast
-- **Split detection**: Uses `value_msat` vs `value_msat_total` to find largest
-- **Link building**: Extracts `feedID` from TLV data for Podcast Index URLs
-- **Amount filtering**: `value_msat_total < 25000` blocks streaming sats
-- **Action filtering**: Only processes `action === 2` (boosts)
-```
+## Technical Details
+- **Hive Monitoring**: Streams operations from Hive blockchain
+- **Operation Filtering**: Looks for custom_json with id='podping'
+- **Live Detection**: Checks for reason='live' in PodPing data
+- **Title Extraction**: Basic URL parsing to extract show names
+- **Duplicate Prevention**: Tracks processed operations to avoid reposts
