@@ -140,7 +140,7 @@ class PodPingWatcher {
         setTimeout(() => this.start(), 5000);
       });
 
-      logger.info('PodPing watcher started successfully');
+      logger.info('🔴 PODPING WATCHER STARTED - Monitoring Hive blockchain');
     } catch (error) {
       logger.error('Failed to start PodPing watcher:', error);
     }
@@ -177,17 +177,17 @@ class PodPingWatcher {
   async processPodPingEvent(opData) {
     try {
       const json = JSON.parse(opData.json);
-      logger.info('PodPing event received:', json);
+      logger.info('🔴 PODPING EVENT RECEIVED:', json);
       
       // Check if this is a live event
       if (json.reason === 'live' && json.url && this.bot) {
-        logger.info(`Live podcast detected: ${json.url}`);
+        logger.info(`🔴 PODPING LIVE DETECTED: ${json.url}`);
         
         // Extract show title from URL or use URL as fallback
         const showTitle = this.extractShowTitle(json.url) || json.url;
         
         await this.bot.postLiveNotification(json.url, showTitle);
-        logger.info(`Posted live notification for: ${showTitle}`);
+        logger.info(`🔴 PODPING POSTED: ${showTitle}`);
       }
     } catch (error) {
       logger.error('Error processing PodPing event:', error);
@@ -245,12 +245,12 @@ class MastodonRSSMonitor {
       }
     }, this.pollInterval);
 
-    logger.info(`RSS monitor started - polling every ${this.pollInterval/1000} seconds`);
+    logger.info(`📡 RSS MONITOR STARTED - Polling @PodcastsLive every ${this.pollInterval/1000} seconds`);
   }
 
   async checkForNewPosts() {
     try {
-      logger.debug('Checking RSS feed for new posts...');
+      logger.info('📡 RSS CHECK: Polling @PodcastsLive for new posts...');
       const feed = await this.parser.parseURL(this.rssUrl);
       
       // Process recent posts (last 10)
@@ -276,13 +276,14 @@ class MastodonRSSMonitor {
     // Check if this looks like a live notification
     const content = post.title || post.contentSnippet || '';
     if (this.isLiveNotification(content)) {
-      logger.info('Live notification detected from RSS:', { title: post.title });
+      logger.info('📡 RSS LIVE DETECTED:', { title: post.title, content });
       
       // Extract show info
       const showInfo = this.extractShowInfo(content, post.link);
       
       if (showInfo) {
         await this.postLiveNotification(showInfo);
+        logger.info(`📡 RSS POSTED: ${showInfo.title}`);
         this.processedPosts.add(postId);
         
         // Clean up old processed posts (keep last 100)
@@ -290,6 +291,8 @@ class MastodonRSSMonitor {
           const postsArray = Array.from(this.processedPosts);
           this.processedPosts = new Set(postsArray.slice(-50));
         }
+      } else {
+        logger.info('📡 RSS SKIPPED: Could not extract show info from:', content);
       }
     }
   }
@@ -367,7 +370,7 @@ class MastodonRSSMonitor {
     }, sk);
 
     await this.bot.publishToRelays(event);
-    logger.info(`Posted RSS live notification: ${showInfo.title}`);
+    logger.info(`📡 RSS NOTIFICATION POSTED: ${showInfo.title}`);
   }
 }
 
