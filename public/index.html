@@ -158,6 +158,94 @@
             font-size: 0.8rem;
             margin-top: 20px;
         }
+        .post-card {
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            margin-bottom: 15px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .post-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .post-type {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .post-time-info {
+            text-align: right;
+        }
+        .post-timestamp {
+            color: #718096;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .post-absolute-time {
+            color: #a0aec0;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+        .post-content {
+            color: #2d3748;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            max-height: 150px;
+            overflow: hidden;
+            position: relative;
+        }
+        .post-content.expanded {
+            max-height: none;
+        }
+        .post-content::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(transparent, rgba(248, 250, 252, 0.8));
+        }
+        .post-content.expanded::after {
+            display: none;
+        }
+        .post-expand {
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .post-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .post-tag {
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .no-posts {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 40px;
+        }
     </style>
 </head>
 <body>
@@ -230,6 +318,16 @@
                 Last updated: <span id="last-update-time">Never</span>
             </div>
         </div>
+
+        <div class="main-container" style="margin-top: 30px;">
+            <div class="section-title">
+                📝 Recent Posts
+            </div>
+            
+            <div id="posts-container">
+                <!-- Recent posts will be populated by JavaScript -->
+            </div>
+        </div>
     </div>
 
     <script>
@@ -261,6 +359,70 @@
             if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
             if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
             return `${Math.floor(diff / 86400)}d ago`;
+        }
+
+        function updatePosts() {
+            fetch('/api/posts?limit=10')
+                .then(response => response.json())
+                .then(data => {
+                    const postsContainer = document.getElementById('posts-container');
+                    
+                    if (data.posts.length === 0) {
+                        postsContainer.innerHTML = '<div class="no-posts">No posts yet. Posts will appear here when LIT Bot publishes notifications.</div>';
+                        return;
+                    }
+                    
+                    postsContainer.innerHTML = data.posts.map(post => {
+                        const tags = post.tags ? post.tags.filter(tag => tag[0] === 't').map(tag => tag[1]) : [];
+                        const tagHTML = tags.length > 0 ? `
+                            <div class="post-tags">
+                                ${tags.map(tag => `<span class="post-tag">#${tag}</span>`).join('')}
+                            </div>
+                        ` : '';
+                        
+                        const isLong = post.content.length > 200;
+                        const truncatedContent = isLong ? post.content.substring(0, 200) + '...' : post.content;
+                        
+                        return `
+                            <div class="post-card">
+                                <div class="post-header">
+                                    <span class="post-type">${post.type}</span>
+                                    <div class="post-time-info">
+                                        <div class="post-timestamp">${formatTime(post.timestamp)}</div>
+                                        <div class="post-absolute-time">${new Date(post.timestamp).toLocaleString()}</div>
+                                    </div>
+                                </div>
+                                <div class="post-content" id="content-${post.id}">
+                                    ${isLong ? truncatedContent : post.content}
+                                </div>
+                                ${isLong ? `<div class="post-expand" onclick="togglePostContent('${post.id}', '${btoa(encodeURIComponent(post.content))}')">Show more</div>` : ''}
+                                ${tagHTML}
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(error => {
+                    console.error('Failed to fetch posts:', error);
+                    document.getElementById('posts-container').innerHTML = '<div class="no-posts">Failed to load posts</div>';
+                });
+        }
+
+        function togglePostContent(postId, encodedContent) {
+            const contentDiv = document.getElementById(`content-${postId}`);
+            const isExpanded = contentDiv.classList.contains('expanded');
+            
+            if (isExpanded) {
+                const fullContent = decodeURIComponent(atob(encodedContent));
+                const truncated = fullContent.substring(0, 200) + '...';
+                contentDiv.textContent = truncated;
+                contentDiv.classList.remove('expanded');
+                contentDiv.nextElementSibling.textContent = 'Show more';
+            } else {
+                const fullContent = decodeURIComponent(atob(encodedContent));
+                contentDiv.textContent = fullContent;
+                contentDiv.classList.add('expanded');
+                contentDiv.nextElementSibling.textContent = 'Show less';
+            }
         }
 
         function updateDashboard() {
@@ -354,14 +516,19 @@
 
         // Initial load
         updateDashboard();
+        updatePosts();
 
         // Auto-refresh every 5 seconds
-        refreshInterval = setInterval(updateDashboard, 5000);
+        refreshInterval = setInterval(() => {
+            updateDashboard();
+            updatePosts();
+        }, 5000);
 
         // Update immediately when page becomes visible
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 updateDashboard();
+                updatePosts();
             }
         });
     </script>

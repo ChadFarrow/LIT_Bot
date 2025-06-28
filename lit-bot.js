@@ -97,10 +97,10 @@ class LITBot {
     
     const content = `🔴 LIVE NOW!
 
-🎧 ${showTitle}
+${showTitle}
 📻 Tune in now: ${feedUrl}
 
-#LivePodcast #PC20 #PodPing`;
+#LivePodcast #PC20 #PodPing #podcasting #LIT #LIVEisLIT`;
 
     const event = finalizeEvent({
       kind: 1,
@@ -109,6 +109,9 @@ class LITBot {
         ['t', 'livepodcast'],
         ['t', 'pc20'],
         ['t', 'podping'],
+        ['t', 'podcasting'],
+        ['t', 'lit'],
+        ['t', 'liveislit'],
         ['r', feedUrl],
       ],
       created_at: Math.floor(Date.now() / 1000),
@@ -343,24 +346,49 @@ class MastodonRSSMonitor {
 
   extractShowInfo(content, postUrl) {
     try {
-      // Try to extract show name from the content
-      // Common patterns: "🔴 Show Name is live" or "Show Name - Live Now"
-      let showTitle = content
-        .replace(/🔴/g, '')
-        .replace(/\s+(is\s+)?live\s*(now)?/gi, '')
-        .replace(/\s*-\s*live\s*(now)?/gi, '')
-        .replace(/live\s*:/gi, '')
-        .trim();
+      // Parse the RSS content which comes in structured format
+      // Expected format: "Show Name is going #live!\n Episode Details\n stream url: ..."
+      
+      // Split content into lines and process
+      const lines = content.split('\n').map(line => line.trim()).filter(line => line);
+      
+      if (lines.length === 0) return null;
+      
+      // First line should contain show name and "is going #live!"
+      const firstLine = lines[0];
+      let showName = firstLine.replace(/is going.+$/gi, '').trim();
+      
+      // Find episode details (usually the second line before stream url)
+      let episodeDetails = '';
+      let streamUrl = '';
+      let showUrl = '';
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.startsWith('stream url:')) {
+          streamUrl = line.replace('stream url:', '').trim();
+        } else if (line.startsWith('show url:')) {
+          showUrl = line.replace('show url:', '').trim();
+        } else if (!line.includes('#podcast') && !line.includes('http') && episodeDetails === '') {
+          episodeDetails = line;
+        }
+      }
+      
+      // Build the formatted title with proper spacing
+      let formattedTitle = showName;
+      if (episodeDetails) {
+        formattedTitle += '\n\n' + episodeDetails;
+      }
+      if (streamUrl) {
+        formattedTitle += '\n\nstream url: ' + streamUrl;
+      }
+      if (showUrl) {
+        formattedTitle += '\nshow url: ' + showUrl;
+      }
 
-      // Clean up common prefixes/suffixes
-      showTitle = showTitle
-        .replace(/^(now\s+)?live:?\s*/gi, '')
-        .replace(/\s*live\s*$/gi, '')
-        .trim();
-
-      if (showTitle && showTitle.length > 2) {
+      if (showName && showName.length > 2) {
         return {
-          title: showTitle,
+          title: formattedTitle,
           source: 'Mastodon RSS',
           url: postUrl || 'https://podcastindex.social/@PodcastsLive'
         };
@@ -380,11 +408,10 @@ class MastodonRSSMonitor {
     
     const content = `🔴 LIVE NOW!
 
-🎧 ${showInfo.title}
-📡 Source: ${showInfo.source}
+${showInfo.title}
 🔗 More info: ${showInfo.url}
 
-#LivePodcast #PC20 #PodcastsLive`;
+#LivePodcast #PC20 #PodcastsLive #podcasting #LIT #LIVEisLIT`;
 
     const event = finalizeEvent({
       kind: 1,
@@ -393,6 +420,9 @@ class MastodonRSSMonitor {
         ['t', 'livepodcast'],
         ['t', 'pc20'],
         ['t', 'podcastslive'],
+        ['t', 'podcasting'],
+        ['t', 'lit'],
+        ['t', 'liveislit'],
         ['r', showInfo.url],
       ],
       created_at: Math.floor(Date.now() / 1000),
