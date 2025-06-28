@@ -8,6 +8,11 @@ import { Relay } from 'nostr-tools/relay';
 import { Client } from '@hiveio/dhive';
 import Parser from 'rss-parser';
 import { logger } from './lib/logger.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const execAsync = promisify(exec);
 
@@ -16,9 +21,23 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(express.static(join(__dirname, 'public')));
 
-// Store bot start time
+// Store bot start time and statistics
 const botStartTime = new Date();
+const stats = {
+  rssNotifications: 0,
+  podpingEvents: 0,
+  successfulPosts: 0,
+  failedPosts: 0,
+  lastActivity: null,
+  relayStats: {
+    'wss://relay.damus.io': { success: 0, failed: 0 },
+    'wss://relay.nostr.band': { success: 0, failed: 0 },
+    'wss://nostr.mom': { success: 0, failed: 0 },
+    'wss://relay.primal.net': { success: 0, failed: 0 }
+  }
+};
 
 // LIT Bot Nostr configuration
 class LITBot {
@@ -57,8 +76,12 @@ class LITBot {
         await relay.publish(event);
         relay.close();
         logger.info(`Successfully published to ${relayUrl}`);
+        stats.relayStats[relayUrl].success++;
+        stats.successfulPosts++;
       } catch (error) {
         logger.error(`Failed to publish to ${relayUrl}`, { error: error?.message || error });
+        stats.relayStats[relayUrl].failed++;
+        stats.failedPosts++;
       }
     });
 
@@ -190,6 +213,8 @@ class PodPingWatcher {
         // Extract show title from URL or use URL as fallback
         const showTitle = this.extractShowTitle(json.url) || json.url;
         
+        stats.podpingEvents++;
+        stats.lastActivity = new Date();
         await this.bot.postLiveNotification(json.url, showTitle);
         logger.info(`🔴 PODPING POSTED: ${showTitle}`);
       }
@@ -374,16 +399,39 @@ class MastodonRSSMonitor {
     }, sk);
 
     await this.bot.publishToRelays(event);
+    stats.rssNotifications++;
+    stats.lastActivity = new Date();
     logger.info(`📡 RSS NOTIFICATION POSTED: ${showInfo.title}`);
   }
 }
+
+// Dashboard route - serve the main dashboard
+app.get('/', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'index.html'));
+});
+
+// API endpoints for dashboard data
+app.get('/api/stats', (req, res) => {
+  const now = new Date();
+  const uptimeMs = now.getTime() - botStartTime.getTime();
+  const uptimeSeconds = Math.floor(uptimeMs / 1000);
+  
+  res.json({
+    ...stats,
+    uptime: uptimeSeconds,
+    started: botStartTime.toISOString(),
+    service: 'LIT Bot - Live Podcast Notifications',
+    configured: !!process.env.LIT_BOT_NSEC,
+    testMode: process.env.TEST_MODE === 'true'
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).send('LIT Bot is running');
 });
 
-// Status endpoint
+// Status endpoint (legacy)
 app.get('/status', (req, res) => {
   const now = new Date();
   const uptimeMs = now.getTime() - botStartTime.getTime();
