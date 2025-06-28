@@ -10,7 +10,7 @@ let lastRestartTime = 0;
 
 function getProcessInfo() {
   try {
-    const output = execSync('ps aux | grep -E "(helipad-webhook|tsx.*helipad)" | grep -v grep', { encoding: 'utf8' });
+    const output = execSync('ps aux | grep -E "(lit-bot|tsx.*lit-bot)" | grep -v grep', { encoding: 'utf8' });
     return output.trim().split('\n').filter(line => line.trim());
   } catch (error) {
     return [];
@@ -19,7 +19,7 @@ function getProcessInfo() {
 
 function getHealthStatus() {
   try {
-    const response = execSync('curl -s -w "%{http_code}" http://localhost:3333/health', { encoding: 'utf8' });
+    const response = execSync('curl -s -w "%{http_code}" http://localhost:3334/health', { encoding: 'utf8' });
     const statusCode = response.slice(-3);
     return parseInt(statusCode);
   } catch (error) {
@@ -47,7 +47,7 @@ function restartBot() {
     process.exit(1);
   }
   
-  console.log(`🔄 Restarting BoostBot (attempt ${restartCount + 1}/${MAX_RESTARTS})...`);
+  console.log(`🔄 Restarting LIT_Bot (attempt ${restartCount + 1}/${MAX_RESTARTS})...`);
   
   try {
     // Stop existing processes
@@ -62,31 +62,31 @@ function restartBot() {
       });
       
       child.on('error', (error) => {
-        console.error('❌ Failed to restart BoostBot:', error.message);
+        console.error('❌ Failed to restart LIT_Bot:', error.message);
         restartCount++;
         lastRestartTime = now;
       });
       
       child.on('exit', (code) => {
         if (code !== 0) {
-          console.error(`❌ BoostBot exited with code ${code}`);
+          console.error(`❌ LIT_Bot exited with code ${code}`);
           restartCount++;
           lastRestartTime = now;
         }
       });
       
-      console.log('✅ BoostBot restarted successfully');
+      console.log('✅ LIT_Bot restarted successfully');
     }, 2000);
     
   } catch (error) {
-    console.error('❌ Failed to restart BoostBot:', error.message);
+    console.error('❌ Failed to restart LIT_Bot:', error.message);
     restartCount++;
     lastRestartTime = now;
   }
 }
 
 function main() {
-  console.log('🤖 BoostBot Auto-Restart Monitor Started');
+  console.log('🤖 LIT_Bot Auto-Restart Monitor Started');
   console.log(`📊 Check interval: ${CHECK_INTERVAL / 1000} seconds`);
   console.log(`🔄 Max restarts per hour: ${MAX_RESTARTS}`);
   console.log('Press Ctrl+C to stop\n');
@@ -95,9 +95,9 @@ function main() {
     const timestamp = new Date().toLocaleString();
     
     if (isHealthy()) {
-      console.log(`✅ [${timestamp}] BoostBot is healthy`);
+      console.log(`✅ [${timestamp}] LIT_Bot is healthy`);
     } else {
-      console.log(`❌ [${timestamp}] BoostBot is unhealthy - restarting...`);
+      console.log(`❌ [${timestamp}] LIT_Bot is unhealthy - restarting...`);
       restartBot();
     }
   }, CHECK_INTERVAL);

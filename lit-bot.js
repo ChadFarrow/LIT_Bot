@@ -478,7 +478,7 @@ app.get('/status', (req, res) => {
 
 // Start the server and PodPing watcher
 const PORT = process.env.PORT || 3334;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   logger.info(`LIT Bot started`, { port: PORT });
   logger.info(`Health check: http://localhost:${PORT}/health`);
   logger.info(`Status: http://localhost:${PORT}/status`);
