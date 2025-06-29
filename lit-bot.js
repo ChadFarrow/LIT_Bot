@@ -10,6 +10,7 @@ import Parser from 'rss-parser';
 import { logger } from './lib/logger.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -252,9 +253,38 @@ class MastodonRSSMonitor {
   constructor() {
     this.parser = new Parser();
     this.bot = createLITBot();
-    this.processedPosts = new Set();
+    this.stateFile = join(__dirname, 'rss-state.json');
+    this.processedPosts = this.loadProcessedPosts();
     this.rssUrl = 'https://podcastindex.social/@PodcastsLive.rss';
     this.pollInterval = 60000; // 1 minute
+  }
+
+  loadProcessedPosts() {
+    try {
+      if (existsSync(this.stateFile)) {
+        const data = readFileSync(this.stateFile, 'utf8');
+        const state = JSON.parse(data);
+        logger.info(`📡 RSS STATE: Loaded ${state.processedPosts?.length || 0} previously processed posts`);
+        return new Set(state.processedPosts || []);
+      }
+    } catch (error) {
+      logger.error('Error loading RSS state:', error);
+    }
+    logger.info('📡 RSS STATE: Starting with empty state');
+    return new Set();
+  }
+
+  saveProcessedPosts() {
+    try {
+      const state = {
+        lastUpdated: new Date().toISOString(),
+        processedPosts: Array.from(this.processedPosts)
+      };
+      writeFileSync(this.stateFile, JSON.stringify(state, null, 2));
+      logger.debug(`📡 RSS STATE: Saved ${state.processedPosts.length} processed posts`);
+    } catch (error) {
+      logger.error('Error saving RSS state:', error);
+    }
   }
 
   async start() {
@@ -323,8 +353,14 @@ class MastodonRSSMonitor {
           const postsArray = Array.from(this.processedPosts);
           this.processedPosts = new Set(postsArray.slice(-50));
         }
+        
+        // Save state to persist across restarts
+        this.saveProcessedPosts();
       } else {
         logger.info('📡 RSS SKIPPED: Could not extract show info from:', content);
+        // Still mark as processed to avoid checking again
+        this.processedPosts.add(postId);
+        this.saveProcessedPosts();
       }
     }
   }
