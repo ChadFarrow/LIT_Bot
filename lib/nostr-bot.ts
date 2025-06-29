@@ -964,6 +964,29 @@ export async function announceHelipadPayment(event: HelipadPaymentEvent): Promis
     return; // Skip boosts not from ChadF
   }
 
+  // Blocklist of bot accounts - don't repost boosts sent to these accounts
+  const blockedBotPubkeys = [
+    'npub1x9txy0vttevqznkzfrl8f8u950lpy70tesd0hg7lfswmcfff9uasat8dz9', // Bot account
+  ];
+  
+  // Check if boost was sent to a blocked bot account
+  if (event.payment_info?.pubkey) {
+    try {
+      // Convert hex pubkey to npub for comparison
+      const recipientNpub = nip19.encode('npub', event.payment_info.pubkey);
+      if (blockedBotPubkeys.includes(recipientNpub)) {
+        logger.info(`Skipping boost to blocked bot account`, { 
+          sender: event.sender, 
+          recipient: recipientNpub,
+          amount: event.value_msat_total / 1000
+        });
+        return; // Skip boosts to blocked bot accounts
+      }
+    } catch (error) {
+      logger.debug('Error checking recipient pubkey against blocklist', { error: error.message });
+    }
+  }
+
   // Group splits by a wider time window to catch all splits from the same boost
   const timeWindow = Math.floor(event.time / 120); // 2-minute windows to prevent split sessions
   const sessionId = `${timeWindow}-${event.sender}-${event.episode}-${event.podcast}`;
@@ -1061,6 +1084,28 @@ const showToNpubMap: Record<string, string[]> = {
     'npub15zt29ma0q2je90u6tzjse4q9md4jn84x44uwze0mj03uvrd2puksq8w9sh', // Kevin Bae
   ],
   'Ungovernable Misfits': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+  ],
+  'THE BITCOIN BRIEF': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+    'npub15c88nc8d44gsp4658dnfu5fahswzzu8gaxm5lkuwjud068swdqfspxssvx', // QnA
+  ],
+  'MONERO MONTHLY': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+    'npub1tr4dstaptd2sp98h7hlysp8qle6mw7wmauhfkgz3rmxdd8ndprusnw2y5g', // Seth for Privacy
+  ],
+  'Pleb Miner Monthly': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+    'npub1luwkteu2eq2e97n7hw0tlj03vvgguzl0srm3vkxz2jt75wpaf9tspt9cqr', // Jon
+  ],
+  'ACTION NEWS': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+    'npub1luwkteu2eq2e97n7hw0tlj03vvgguzl0srm3vkxz2jt75wpaf9tspt9cqr', // Jon
+  ],
+  'The Confab': [
+    'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
+  ],
+  'ASHIGARU': [
     'npub1lqvv69u549atefvcyfht30lemlyvl9jnz4l7c6ejs20yzpq7hh7sjjfx0r', // Max
   ],
   'UpBEATS': [

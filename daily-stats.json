@@ -1,15 +1,11 @@
 {
-  "date": "2025-06-25",
-  "streamSats": 274,
-  "boostSats": 10601,
+  "date": "2025-06-27",
+  "streamSats": 30,
+  "boostSats": 42,
   "streamShows": [
-    "bitpunk.fm unwound"
+    "Homegrown Hits"
   ],
   "boostShows": [
-    "Bowl After Bowl",
-    "bitpunk.fm unwound",
-    "Samurai Holiday",
-    "THE Bitcoin Podcast",
-    "The Heycitizen Experience"
+    "Unknown"
   ]
 }

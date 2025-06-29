@@ -6,5 +6,13 @@
     "lastSupported": "2025-06-25",
     "totalBoosts": 3,
     "totalSats": 300
+  },
+  "podcast:Samurai Holiday": {
+    "name": "Samurai Holiday",
+    "type": "podcast",
+    "firstSupported": "2025-06-27",
+    "lastSupported": "2025-06-27",
+    "totalBoosts": 6,
+    "totalSats": 126
   }
 }
