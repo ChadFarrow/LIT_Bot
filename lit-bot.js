@@ -395,7 +395,7 @@ ${showInfo.title}
         if (isHomegrownHits) {
           // Post only to #HomegrownHits channel
           await ircClient.postMessage(
-            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`,
             ['#HomegrownHits']
           );
           logger.info('Posted Homegrown Hits notification to #HomegrownHits channel');
