@@ -442,6 +442,21 @@ app.get('/status', (req, res) => {
   });
 });
 
+// Test endpoint for IRC posting
+app.post('/test-irc', async (req, res) => {
+  if (!ircClient) {
+    return res.status(500).json({ error: 'IRC client not initialized' });
+  }
+  
+  const { message } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+  
+  const success = await ircClient.postMessage(message);
+  res.json({ success, message: success ? 'Message sent' : 'Failed to send message' });
+});
+
 // Start the server and PodPing watcher
 const PORT = process.env.PORT || 3334;
 app.listen(PORT, '0.0.0.0', () => {
