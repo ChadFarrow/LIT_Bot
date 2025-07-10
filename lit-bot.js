@@ -389,9 +389,26 @@ ${showInfo.title}
     // Also post to IRC if configured
     if (ircClient) {
       try {
-        await ircClient.postLiveNotification(showInfo.title, showInfo.url);
+        // Check if this is a Homegrown Hits notification
+        const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits');
+        
+        if (isHomegrownHits) {
+          // Post only to #HomegrownHits channel
+          await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#HomegrownHits']
+          );
+          logger.info('Posted Homegrown Hits notification to #HomegrownHits channel');
+        } else {
+          // Post to #BowlAfterBowl channel for other shows
+          await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#BowlAfterBowl']
+          );
+          logger.info('Posted RSS notification to #BowlAfterBowl channel');
+        }
+        
         stats.ircPosts++;
-        logger.info('Posted RSS notification to IRC');
       } catch (error) {
         logger.error('Failed to post RSS notification to IRC:', error);
       }
@@ -448,12 +465,12 @@ app.post('/test-irc', async (req, res) => {
     return res.status(500).json({ error: 'IRC client not initialized' });
   }
   
-  const { message } = req.body;
+  const { message, channels } = req.body;
   if (!message) {
     return res.status(400).json({ error: 'Message is required' });
   }
   
-  const success = await ircClient.postMessage(message);
+  const success = await ircClient.postMessage(message, channels);
   res.json({ success, message: success ? 'Message sent' : 'Failed to send message' });
 });
 
