@@ -6,6 +6,7 @@ LIT_Bot monitors PodPing events on the Hive blockchain and automatically posts l
 
 - 🔴 **Real-time Live Detection** - Monitors Hive blockchain for PodPing events with `reason=live`
 - 📱 **Nostr Integration** - Posts live notifications directly to Nostr
+- 💬 **IRC Integration** - Posts live notifications to IRC channels (No Agenda Troll Room, etc.)
 - 🛡️ **Separate Identity** - Uses dedicated Nostr account for live notifications
 - ⚡ **Fast Response** - Notifications within ~20 seconds of shows going live
 - 🔧 **Easy Setup** - Simple configuration with environment variables
@@ -52,13 +53,22 @@ PORT=3334
 
 # Optional: Test mode
 TEST_MODE=false
+
+# Optional: IRC Configuration
+IRC_ENABLED=true
+IRC_SERVER=irc.libera.chat
+IRC_PORT=6667
+IRC_NICKNAME=LITBot
+IRC_CHANNELS=#noagenda,#podcasting
 ```
 
 ## How It Works
 
 1. **PodPing Monitoring** - LIT_Bot connects to the Hive blockchain and streams operations
 2. **Live Detection** - Filters for `custom_json` operations with `id='podping'` and `reason='live'`
-3. **Nostr Posting** - When a live event is detected, posts notification to Nostr relays
+3. **Multi-Platform Posting** - When a live event is detected, posts notifications to:
+   - Nostr relays (primary)
+   - IRC channels (optional)
 4. **Show Discovery** - Extracts show titles from feed URLs for clean notifications
 
 ## Post Format
@@ -85,9 +95,10 @@ npm run status     # Get status info
 
 ## Technical Details
 
-- **Built with**: Node.js, Express, @hiveio/dhive, nostr-tools
+- **Built with**: Node.js, Express, @hiveio/dhive, nostr-tools, irc
 - **Monitoring**: Hive blockchain operations stream
 - **Relays**: relay.damus.io, relay.nostr.band, nostr.mom, relay.primal.net
+- **IRC**: Supports any IRC network (Libera.Chat, No Agenda, etc.)
 - **Port**: 3334 (configurable)
 
 ## Development
@@ -96,6 +107,25 @@ npm run status     # Get status info
 2. **Local Testing**: Bot runs on `http://localhost:3334`
 3. **Health Check**: `curl http://localhost:3334/health`
 4. **Status**: `curl http://localhost:3334/status`
+
+## IRC Setup
+
+### No Agenda Troll Room
+To post to the No Agenda Troll Room:
+```bash
+IRC_ENABLED=true
+IRC_SERVER=irc.noagenda.stream
+IRC_PORT=6667
+IRC_NICKNAME=LITBot
+IRC_CHANNELS=#noagenda
+```
+
+### Other IRC Networks
+- **Libera.Chat**: `irc.libera.chat:6667`
+- **Freenode**: `irc.freenode.net:6667`
+- **Custom servers**: Any IRC server with public channels
+
+See `IRC_SETUP.md` for detailed configuration options.
 
 ## Security
 

@@ -282,6 +282,12 @@
                 <div class="stat-value" id="uptime">0s</div>
                 <div class="stat-subtext" id="started-time">Started now</div>
             </div>
+
+            <div class="stat-card">
+                <h3>IRC Posts</h3>
+                <div class="stat-value" id="irc-count">0</div>
+                <div class="stat-subtext" id="irc-status">Not configured</div>
+            </div>
         </div>
 
         <div class="main-container">
@@ -458,6 +464,19 @@
                     document.getElementById('podping-count').textContent = data.podpingEvents;
                     document.getElementById('success-count').textContent = data.successfulPosts;
                     document.getElementById('failed-count').textContent = data.failedPosts;
+                    document.getElementById('irc-count').textContent = data.ircPosts || 0;
+
+                    // Update IRC status
+                    const ircStatus = document.getElementById('irc-status');
+                    if (data.ircEnabled) {
+                        if (data.ircStatus && data.ircStatus.connected) {
+                            ircStatus.textContent = `Connected to ${data.ircStatus.server}`;
+                        } else {
+                            ircStatus.textContent = 'Connecting...';
+                        }
+                    } else {
+                        ircStatus.textContent = 'Not configured';
+                    }
 
                     // Update uptime
                     document.getElementById('uptime').textContent = formatUptime(data.uptime);

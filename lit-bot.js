@@ -7,6 +7,7 @@ import { finalizeEvent, nip19 } from 'nostr-tools';
 import { Relay } from 'nostr-tools/relay';
 import Parser from 'rss-parser';
 import { logger } from './lib/logger.js';
+import { IRCClient } from './lib/irc-client.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -29,6 +30,7 @@ const stats = {
   rssNotifications: 0,
   successfulPosts: 0,
   failedPosts: 0,
+  ircPosts: 0,
   lastActivity: null,
   relayStats: {
     'wss://relay.damus.io': { success: 0, failed: 0 },
@@ -37,6 +39,25 @@ const stats = {
     'wss://relay.primal.net': { success: 0, failed: 0 }
   }
 };
+
+// IRC Configuration
+const ircConfig = {
+  server: process.env.IRC_SERVER || 'irc.libera.chat',
+  port: parseInt(process.env.IRC_PORT) || 6667,
+  secure: process.env.IRC_SECURE === 'true',
+  nickname: process.env.IRC_NICKNAME || 'LITBot',
+  userName: process.env.IRC_USERNAME || 'litbot',
+  realName: process.env.IRC_REALNAME || 'LIT Bot - Live Podcast Notifications',
+  password: process.env.IRC_PASSWORD,
+  channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#noagenda']
+};
+
+// Create IRC client if configured
+let ircClient = null;
+if (process.env.IRC_ENABLED === 'true') {
+  ircClient = new IRCClient(ircConfig);
+  ircClient.connect();
+}
 
 // LIT Bot Nostr configuration
 class LITBot {
@@ -117,6 +138,17 @@ ${showTitle}
     }, sk);
 
     await this.publishToRelays(event);
+    
+    // Also post to IRC if configured
+    if (ircClient) {
+      try {
+        await ircClient.postLiveNotification(showTitle, feedUrl);
+        stats.ircPosts++;
+        logger.info('Posted live notification to IRC');
+      } catch (error) {
+        logger.error('Failed to post to IRC:', error);
+      }
+    }
   }
 }
 
@@ -353,6 +385,17 @@ ${showInfo.title}
     stats.rssNotifications++;
     stats.lastActivity = new Date();
     logger.info(`📡 RSS NOTIFICATION POSTED: ${showInfo.title}`);
+    
+    // Also post to IRC if configured
+    if (ircClient) {
+      try {
+        await ircClient.postLiveNotification(showInfo.title, showInfo.url);
+        stats.ircPosts++;
+        logger.info('Posted RSS notification to IRC');
+      } catch (error) {
+        logger.error('Failed to post RSS notification to IRC:', error);
+      }
+    }
   }
 }
 
@@ -373,7 +416,9 @@ app.get('/api/stats', (req, res) => {
     started: botStartTime.toISOString(),
     service: 'LIT Bot - Live Podcast Notifications',
     configured: !!process.env.LIT_BOT_NSEC,
-    testMode: process.env.TEST_MODE === 'true'
+    testMode: process.env.TEST_MODE === 'true',
+    ircEnabled: process.env.IRC_ENABLED === 'true',
+    ircStatus: ircClient ? ircClient.getStatus() : null
   });
 });
 
