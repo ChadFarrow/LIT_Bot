@@ -142,9 +142,13 @@ ${showTitle}
     // Also post to IRC if configured
     if (ircClient) {
       try {
-        await ircClient.postLiveNotification(showTitle, feedUrl);
-        stats.ircPosts++;
-        logger.info('Posted live notification to IRC');
+        const success = await ircClient.postLiveNotification(showTitle, feedUrl);
+        if (success) {
+          stats.ircPosts++;
+          logger.info('Posted live notification to IRC');
+        } else {
+          logger.warn('Failed to post live notification to IRC - not connected');
+        }
       } catch (error) {
         logger.error('Failed to post to IRC:', error);
       }
@@ -394,21 +398,29 @@ ${showInfo.title}
         
         if (isHomegrownHits) {
           // Post only to #HomegrownHits channel
-          await ircClient.postMessage(
+          const success = await ircClient.postMessage(
             `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`,
             ['#HomegrownHits']
           );
-          logger.info('Posted Homegrown Hits notification to #HomegrownHits channel');
+          if (success) {
+            logger.info('Posted Homegrown Hits notification to #HomegrownHits channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Homegrown Hits notification to IRC');
+          }
         } else {
           // Post to #BowlAfterBowl channel for other shows
-          await ircClient.postMessage(
+          const success = await ircClient.postMessage(
             `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
             ['#BowlAfterBowl']
           );
-          logger.info('Posted RSS notification to #BowlAfterBowl channel');
+          if (success) {
+            logger.info('Posted RSS notification to #BowlAfterBowl channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post RSS notification to IRC');
+          }
         }
-        
-        stats.ircPosts++;
       } catch (error) {
         logger.error('Failed to post RSS notification to IRC:', error);
       }
