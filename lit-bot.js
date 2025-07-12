@@ -41,6 +41,7 @@ const stats = {
 };
 
 // IRC Configuration
+logger.info('Loading IRC config, IRC_CHANNELS from env:', process.env.IRC_CHANNELS);
 const ircConfig = {
   server: process.env.IRC_SERVER || 'irc.libera.chat',
   port: parseInt(process.env.IRC_PORT) || 6667,
@@ -331,16 +332,16 @@ class MastodonRSSMonitor {
         }
       }
       
-      // Build the formatted title with proper spacing
+      // Build the formatted title as single line for IRC
       let formattedTitle = showName;
       if (episodeDetails) {
-        formattedTitle += '\n\n' + episodeDetails;
+        formattedTitle += ' - ' + episodeDetails;
       }
       if (streamUrl) {
-        formattedTitle += '\n\nstream url: ' + streamUrl;
+        formattedTitle += ' | stream: ' + streamUrl;
       }
       if (showUrl) {
-        formattedTitle += '\nshow url: ' + showUrl;
+        formattedTitle += ' | show: ' + showUrl;
       }
 
       if (showName && showName.length > 2) {
@@ -394,19 +395,53 @@ ${showInfo.title}
     if (ircClient) {
       try {
         // Check if this is a Homegrown Hits notification
-        const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits');
+        const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits') ||
+                                 showInfo.title.toLowerCase().includes('poetry on tape') ||
+                                 showInfo.title.toLowerCase().includes('lightning thrashes') ||
+                                 showInfo.title.toLowerCase().includes('bitpunk.fm unwound');
+        // Check if this is Into The Doerfel-Verse
+        const isDoerfelVerse = showInfo.title.toLowerCase().includes('doerfel-verse') || 
+                               showInfo.title.toLowerCase().includes('doerfelverse');
+        // Check if this is Mutton, Mead & Music (goes to both DoerfelVerse and HomegrownHits)
+        const isMuttonMeadMusic = showInfo.title.toLowerCase().includes('mutton') && 
+                                  showInfo.title.toLowerCase().includes('mead') && 
+                                  showInfo.title.toLowerCase().includes('music');
         
         if (isHomegrownHits) {
-          // Post only to #HomegrownHits channel
+          // Post to both #HomegrownHits and #BowlAfterBowl channels
           const success = await ircClient.postMessage(
             `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`,
-            ['#HomegrownHits']
+            ['#HomegrownHits', '#BowlAfterBowl']
           );
           if (success) {
-            logger.info('Posted Homegrown Hits notification to #HomegrownHits channel');
+            logger.info('Posted Homegrown Hits notification to #HomegrownHits and #BowlAfterBowl channels');
             stats.ircPosts++;
           } else {
             logger.warn('Failed to post Homegrown Hits notification to IRC');
+          }
+        } else if (isDoerfelVerse) {
+          // Post to both #DoerfelVerse and #BowlAfterBowl channels
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#DoerfelVerse', '#BowlAfterBowl']
+          );
+          if (success) {
+            logger.info('Posted Into The Doerfel-Verse notification to #DoerfelVerse and #BowlAfterBowl channels');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Into The Doerfel-Verse notification to IRC');
+          }
+        } else if (isMuttonMeadMusic) {
+          // Post to #DoerfelVerse, #HomegrownHits, and #BowlAfterBowl channels
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#DoerfelVerse', '#HomegrownHits', '#BowlAfterBowl']
+          );
+          if (success) {
+            logger.info('Posted Mutton, Mead & Music notification to #DoerfelVerse, #HomegrownHits, and #BowlAfterBowl channels');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Mutton, Mead & Music notification to IRC');
           }
         } else {
           // Post to #BowlAfterBowl channel for other shows
