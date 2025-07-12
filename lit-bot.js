@@ -397,8 +397,9 @@ ${showInfo.title}
         // Check if this is a Homegrown Hits notification
         const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits') ||
                                  showInfo.title.toLowerCase().includes('poetry on tape') ||
-                                 showInfo.title.toLowerCase().includes('lightning thrashes') ||
                                  showInfo.title.toLowerCase().includes('bitpunk.fm unwound');
+        // Check if this is Lightning Thrashes (goes to #SirLibre)
+        const isLightningThrashes = showInfo.title.toLowerCase().includes('lightning thrashes');
         // Check if this is Into The Doerfel-Verse
         const isDoerfelVerse = showInfo.title.toLowerCase().includes('doerfel-verse') || 
                                showInfo.title.toLowerCase().includes('doerfelverse');
@@ -407,7 +408,19 @@ ${showInfo.title}
                                   showInfo.title.toLowerCase().includes('mead') && 
                                   showInfo.title.toLowerCase().includes('music');
         
-        if (isHomegrownHits) {
+        if (isLightningThrashes) {
+          // Post to #SirLibre channel
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#SirLibre']
+          );
+          if (success) {
+            logger.info('Posted Lightning Thrashes notification to #SirLibre channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Lightning Thrashes notification to IRC');
+          }
+        } else if (isHomegrownHits) {
           // Post to both #HomegrownHits and #BowlAfterBowl channels
           const success = await ircClient.postMessage(
             `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`,
