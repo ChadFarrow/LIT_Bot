@@ -50,7 +50,7 @@ const ircConfig = {
   userName: process.env.IRC_USERNAME || 'litbot',
   realName: process.env.IRC_REALNAME || 'LIT Bot - Live Podcast Notifications',
   password: process.env.IRC_PASSWORD,
-  channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#noagenda']
+  channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#BowlAfterBowl', '#HomegrownHits', '#SirLibre', '#DoerfelVerse']
 };
 
 // Create IRC client if configured
@@ -532,6 +532,17 @@ app.post('/test-irc', async (req, res) => {
   
   const success = await ircClient.postMessage(message, channels);
   res.json({ success, message: success ? 'Message sent' : 'Failed to send message' });
+});
+
+// Reset IRC connection endpoint
+app.post('/api/irc/reset', (req, res) => {
+  if (!ircClient) {
+    return res.status(500).json({ error: 'IRC client not initialized' });
+  }
+  
+  logger.info('IRC reset requested via API');
+  ircClient.resetAndReconnect();
+  res.json({ success: true, message: 'IRC connection reset initiated' });
 });
 
 // Start the server and PodPing watcher
