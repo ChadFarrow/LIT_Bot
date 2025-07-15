@@ -57,7 +57,9 @@ const ircConfig = {
 let ircClient = null;
 if (process.env.IRC_ENABLED === 'true') {
   ircClient = new IRCClient(ircConfig);
-  ircClient.connect();
+  ircClient.connect().catch(error => {
+    logger.error('Error connecting to IRC:', error);
+  });
 }
 
 // LIT Bot Nostr configuration
@@ -394,6 +396,14 @@ ${showInfo.title}
     // Also post to IRC if configured
     if (ircClient) {
       try {
+        // Check IRC connection status before posting
+        if (!ircClient.isConnectionActive()) {
+          logger.warn('IRC not connected, attempting to reconnect...');
+          await ircClient.connect();
+          // Give it a moment to connect
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
         // Check if this is a Homegrown Hits notification
         const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits') ||
                                  showInfo.title.toLowerCase().includes('poetry on tape') ||
@@ -543,6 +553,18 @@ app.post('/api/irc/reset', (req, res) => {
   logger.info('IRC reset requested via API');
   ircClient.resetAndReconnect();
   res.json({ success: true, message: 'IRC connection reset initiated' });
+});
+
+// Reboot bot endpoint
+app.post('/api/reboot', (req, res) => {
+  logger.info('Bot reboot requested via API');
+  res.json({ success: true, message: 'Bot reboot initiated' });
+  
+  // Give time for response to be sent
+  setTimeout(() => {
+    logger.info('Shutting down for reboot...');
+    process.exit(0); // Exit cleanly - systemd or process manager should restart
+  }, 1000);
 });
 
 // Start the server and PodPing watcher
