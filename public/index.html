@@ -290,6 +290,16 @@
             </div>
         </div>
 
+        <div class="main-container" style="margin-bottom: 20px;">
+            <div class="section-title">
+                🎛️ Bot Controls
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="resetIRC()" style="padding: 10px 20px; background: #4299e1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reset IRC Connection</button>
+                <button onclick="rebootBot()" style="padding: 10px 20px; background: #f56565; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reboot Bot</button>
+            </div>
+        </div>
+
         <div class="main-container">
             <div class="section-title">
                 📡 Relay Performance
@@ -431,6 +441,39 @@
             }
         }
 
+        async function resetIRC() {
+            if (!confirm('Reset IRC connection?')) return;
+            
+            try {
+                const response = await fetch('/api/irc/reset', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function rebootBot() {
+            if (!confirm('Reboot the entire bot? The bot will restart automatically.')) return;
+            
+            try {
+                const response = await fetch('/api/reboot', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message + '\n\nThe dashboard will refresh in 10 seconds...');
+                
+                // Wait and refresh
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+            } catch (error) {
+                // This is expected as the bot is rebooting
+                alert('Bot is rebooting... The dashboard will refresh in 10 seconds.');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+            }
+        }
+
         function updateDashboard() {
             const indicator = document.getElementById('refresh-indicator');
             indicator.classList.add('show');
@@ -471,6 +514,8 @@
                     if (data.ircEnabled) {
                         if (data.ircStatus && data.ircStatus.connected) {
                             ircStatus.textContent = `Connected to ${data.ircStatus.server}`;
+                        } else if (data.ircStatus && data.ircStatus.lastDisconnectTime) {
+                            ircStatus.textContent = `Disconnected ${formatTime(data.ircStatus.lastDisconnectTime)}`;
                         } else {
                             ircStatus.textContent = 'Connecting...';
                         }

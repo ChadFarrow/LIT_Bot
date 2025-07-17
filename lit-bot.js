@@ -53,13 +53,11 @@ const ircConfig = {
   channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#BowlAfterBowl', '#HomegrownHits', '#SirLibre', '#DoerfelVerse']
 };
 
-// Create IRC client if configured
+// Create IRC client if configured (but don't connect until needed)
 let ircClient = null;
 if (process.env.IRC_ENABLED === 'true') {
   ircClient = new IRCClient(ircConfig);
-  ircClient.connect().catch(error => {
-    logger.error('Error connecting to IRC:', error);
-  });
+  logger.info('IRC client initialized for connect-when-needed posting');
 }
 
 // LIT Bot Nostr configuration
@@ -150,7 +148,7 @@ ${showTitle}
           stats.ircPosts++;
           logger.info('Posted live notification to IRC');
         } else {
-          logger.warn('Failed to post live notification to IRC - not connected');
+          logger.warn('Failed to post live notification to IRC');
         }
       } catch (error) {
         logger.error('Failed to post to IRC:', error);
@@ -396,14 +394,6 @@ ${showInfo.title}
     // Also post to IRC if configured
     if (ircClient) {
       try {
-        // Check IRC connection status before posting
-        if (!ircClient.isConnectionActive()) {
-          logger.warn('IRC not connected, attempting to reconnect...');
-          await ircClient.connect();
-          // Give it a moment to connect
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-        
         // Check if this is a Homegrown Hits notification
         const isHomegrownHits = showInfo.title.toLowerCase().includes('homegrown hits') ||
                                  showInfo.title.toLowerCase().includes('poetry on tape') ||
@@ -531,28 +521,34 @@ app.get('/status', (req, res) => {
 
 // Test endpoint for IRC posting
 app.post('/test-irc', async (req, res) => {
-  if (!ircClient) {
-    return res.status(500).json({ error: 'IRC client not initialized' });
+  try {
+    logger.info('Test IRC endpoint called', { body: req.body });
+    
+    if (!ircClient) {
+      return res.status(500).json({ error: 'IRC client not initialized' });
+    }
+    
+    const { message, channels } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    const success = await ircClient.postMessage(message, channels);
+    res.json({ success, message: success ? 'Message sent' : 'Failed to send message' });
+  } catch (error) {
+    logger.error('Error in test-irc endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  const { message, channels } = req.body;
-  if (!message) {
-    return res.status(400).json({ error: 'Message is required' });
-  }
-  
-  const success = await ircClient.postMessage(message, channels);
-  res.json({ success, message: success ? 'Message sent' : 'Failed to send message' });
 });
 
-// Reset IRC connection endpoint
+// Reset IRC connection endpoint (no-op since we use connect-when-needed)
 app.post('/api/irc/reset', (req, res) => {
   if (!ircClient) {
     return res.status(500).json({ error: 'IRC client not initialized' });
   }
   
-  logger.info('IRC reset requested via API');
-  ircClient.resetAndReconnect();
-  res.json({ success: true, message: 'IRC connection reset initiated' });
+  logger.info('IRC reset requested via API (no-op with connect-when-needed approach)');
+  res.json({ success: true, message: 'IRC uses connect-when-needed approach, no reset needed' });
 });
 
 // Reboot bot endpoint
