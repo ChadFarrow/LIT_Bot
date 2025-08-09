@@ -170,6 +170,80 @@ function createLITBot() {
 }
 
 
+// Scheduled Reminder System
+class ReminderSystem {
+  constructor() {
+    this.reminderInterval = null;
+    this.isEnabled = process.env.REMINDERS_ENABLED !== 'false'; // Default enabled
+  }
+
+  start() {
+    if (!this.isEnabled) {
+      logger.info('Reminders disabled via REMINDERS_ENABLED environment variable');
+      return;
+    }
+
+    if (!ircClient) {
+      logger.warn('IRC client not available for reminders');
+      return;
+    }
+
+    logger.info('Starting reminder system...');
+    
+    // Check every minute for scheduled reminders
+    this.reminderInterval = setInterval(() => {
+      this.checkScheduledReminders();
+    }, 60000);
+
+    logger.info('Reminder system started - checking every minute');
+  }
+
+  checkScheduledReminders() {
+    const now = new Date();
+    
+    // Convert to New York time
+    const nyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const dayOfWeek = nyTime.getDay(); // 0=Sunday, 4=Thursday
+    const hour = nyTime.getHours();
+    const minute = nyTime.getMinutes();
+
+    // Check if it's Thursday (4) or Sunday (0) at 10:00 AM
+    if ((dayOfWeek === 4 || dayOfWeek === 0) && hour === 10 && minute === 0) {
+      logger.info('Scheduled reminder triggered', { 
+        day: dayOfWeek === 4 ? 'Thursday' : 'Sunday', 
+        time: `${hour}:${minute} NY time` 
+      });
+      this.postReminder();
+    }
+  }
+
+  async postReminder() {
+    if (!ircClient) return;
+
+    try {
+      const message = 'HEY! phifer++ are we LIT!!';
+      const success = await ircClient.postMessage(message, ['#BowlAfterBowl']);
+      
+      if (success) {
+        logger.info('Posted scheduled reminder to #BowlAfterBowl');
+        stats.ircPosts++;
+      } else {
+        logger.warn('Failed to post scheduled reminder to IRC');
+      }
+    } catch (error) {
+      logger.error('Error posting scheduled reminder:', error);
+    }
+  }
+
+  stop() {
+    if (this.reminderInterval) {
+      clearInterval(this.reminderInterval);
+      this.reminderInterval = null;
+      logger.info('Reminder system stopped');
+    }
+  }
+}
+
 // RSS Monitor for @PodcastsLive@podcastindex.social
 class MastodonRSSMonitor {
   constructor() {
@@ -564,7 +638,7 @@ app.post('/api/reboot', (req, res) => {
 });
 
 // Start the server and PodPing watcher
-const PORT = process.env.PORT || 3334;
+const PORT = process.env.PORT || 3336;
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`LIT Bot started`, { port: PORT });
   logger.info(`Health check: http://localhost:${PORT}/health`);
@@ -573,4 +647,8 @@ app.listen(PORT, '0.0.0.0', () => {
   // Start RSS monitoring
   const rssMonitor = new MastodonRSSMonitor();
   rssMonitor.start();
+  
+  // Start reminder system
+  const reminderSystem = new ReminderSystem();
+  reminderSystem.start();
 });
