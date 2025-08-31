@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIT Bot IRC Monitor</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            background: #000;
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .connected { color: #0f0; }
+        .disconnected { color: #f00; }
+        .attempts { color: #ff0; }
+        .log {
+            background: #000;
+            border: 1px solid #0f0;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0c0;
+        }
+        h1 { color: #0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 LIT Bot IRC Monitor</h1>
+        
+        <div class="status" id="status">
+            Loading status...
+        </div>
+        
+        <div>
+            <button onclick="resetIRC()">Reset IRC Connection</button>
+            <button onclick="rebootBot()" style="background: #f00; color: #fff;">Reboot Bot</button>
+            <button onclick="clearLog()">Clear Log</button>
+            <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh: <span id="autoStatus">ON</span></button>
+        </div>
+        
+        <h3>Recent IRC Events</h3>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let logEvents = [];
+        
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                const irc = data.ircStatus;
+                
+                const statusDiv = document.getElementById('status');
+                let lastDisconnectInfo = '';
+                if (irc.lastDisconnectTime) {
+                    const disconnectTime = new Date(irc.lastDisconnectTime);
+                    const timeSince = Math.floor((new Date() - disconnectTime) / 1000);
+                    let timeAgo = '';
+                    if (timeSince < 60) timeAgo = `${timeSince}s ago`;
+                    else if (timeSince < 3600) timeAgo = `${Math.floor(timeSince / 60)}m ago`;
+                    else if (timeSince < 86400) timeAgo = `${Math.floor(timeSince / 3600)}h ago`;
+                    else timeAgo = `${Math.floor(timeSince / 86400)}d ago`;
+                    
+                    lastDisconnectInfo = `<div>Last Disconnect: <span class="disconnected">${timeAgo} (${disconnectTime.toLocaleTimeString()})</span></div>`;
+                }
+                
+                statusDiv.innerHTML = `
+                    <div>📡 IRC Status</div>
+                    <div>Connected: <span class="${irc.connected ? 'connected' : 'disconnected'}">${irc.connected ? 'YES' : 'NO'}</span></div>
+                    <div>Connection Active: <span class="${irc.connectionActive ? 'connected' : 'disconnected'}">${irc.connectionActive ? 'YES' : 'NO'}</span></div>
+                    <div>Reconnect Attempts: <span class="attempts">${irc.reconnectAttempts}/10</span></div>
+                    ${lastDisconnectInfo}
+                    <div>Server: ${irc.server}</div>
+                    <div>Channels: ${irc.channels.join(', ')}</div>
+                    <div>IRC Posts: ${data.ircPosts}</div>
+                    <div>Last Update: ${new Date().toLocaleTimeString()}</div>
+                `;
+                
+                // Add to log if status changed
+                if (logEvents.length === 0 || 
+                    logEvents[logEvents.length - 1].connected !== irc.connected ||
+                    logEvents[logEvents.length - 1].attempts !== irc.reconnectAttempts) {
+                    
+                    logEvents.push({
+                        time: new Date().toLocaleTimeString(),
+                        connected: irc.connected,
+                        attempts: irc.reconnectAttempts,
+                        active: irc.connectionActive
+                    });
+                    
+                    updateLog();
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = `<div class="disconnected">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function updateLog() {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = logEvents.slice(-50).reverse().map(event => 
+                `[${event.time}] Connected: ${event.connected ? 'YES' : 'NO'}, Active: ${event.active ? 'YES' : 'NO'}, Attempts: ${event.attempts}`
+            ).join('\n');
+        }
+        
+        async function resetIRC() {
+            if (confirm('Reset IRC connection?')) {
+                try {
+                    const response = await fetch('/api/irc/reset', { method: 'POST' });
+                    const data = await response.json();
+                    alert(data.message);
+                    setTimeout(updateStatus, 2000);
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            }
+        }
+        
+        function clearLog() {
+            logEvents = [];
+            updateLog();
+        }
+        
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            document.getElementById('autoStatus').textContent = autoRefresh ? 'ON' : 'OFF';
+        }
+        
+        async function rebootBot() {
+            if (!confirm('Reboot the entire bot? The bot will restart automatically.')) return;
+            
+            try {
+                const response = await fetch('/api/reboot', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message + '\n\nThis page will refresh in 10 seconds...');
+                
+                // Wait and refresh
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+            } catch (error) {
+                // This is expected as the bot is rebooting
+                alert('Bot is rebooting... This page will refresh in 10 seconds.');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+            }
+        }
+        
+        // Update every 5 seconds
+        setInterval(() => {
+            if (autoRefresh) updateStatus();
+        }, 5000);
+        
+        // Initial load
+        updateStatus();
+    </script>
+</body>
+</html>

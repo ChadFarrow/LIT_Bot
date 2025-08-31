@@ -15,7 +15,7 @@
 - **Only posts live events**: reason === 'live'
 - **Monitors Hive**: Uses @hiveio/dhive for blockchain monitoring
 - **Auto-extracts titles**: Attempts to extract show names from feed URLs
-- **Runs on port 3334**: Separate from BoostBot (port 3333)
+- **Runs on port 3336**: Separate from BoostBot (port 3333) and BoostAfterBoost (port 3335)
 
 ## Nostr Configuration
 - **Environment Variable**: `LIT_BOT_NSEC` (separate from BoostBot)
@@ -34,7 +34,7 @@
 ### Starting the Bot
 ```bash
 cd /Users/chad-mini/Vibe/LIT_Bot
-PORT=3334 LIT_BOT_NSEC=your_private_key npm start
+PORT=3336 LIT_BOT_NSEC=your_private_key npm start
 ```
 
 ### Environment Variables Needed
@@ -43,7 +43,7 @@ PORT=3334 LIT_BOT_NSEC=your_private_key npm start
 LIT_BOT_NSEC=your_private_key  # Your LIT Bot Nostr private key
 
 # Optional
-PORT=3334              # Default port
+PORT=3336              # Default port
 TEST_MODE=true         # For testing without posting
 ```
 
@@ -53,13 +53,13 @@ TEST_MODE=true         # For testing without posting
 ps aux | grep -v grep | grep lit-bot
 
 # Check what's using port 3334
-lsof -i :3334
+lsof -i :3336
 
 # Health check
-curl http://localhost:3334/health
+curl http://localhost:3336/health
 
 # Status info
-curl http://localhost:3334/status
+curl http://localhost:3336/status
 ```
 
 ### Stopping the Bot
@@ -76,7 +76,7 @@ pkill -f lit-bot
 
 ## Important Notes
 - **Separate Account**: Uses different Nostr account than BoostBot
-- **Port 3334**: Runs on different port to avoid conflicts
+- **Port 3336**: Runs on different port to avoid conflicts
 - **PodPing Only**: Only monitors PodPing, no webhook integration
 - **Live Focus**: Only posts when shows go live (reason=live)
 - **Real-time**: Near-instant notifications via Hive blockchain monitoring
@@ -94,7 +94,7 @@ pkill -f lit-bot
 export TEST_MODE=true
 
 # Start bot in test mode
-TEST_MODE=true PORT=3334 LIT_BOT_NSEC=your_private_key npm start
+TEST_MODE=true PORT=3336 LIT_BOT_NSEC=your_private_key npm start
 ```
 
 ### Post Format
