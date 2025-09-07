@@ -1,19 +1,23 @@
 import irc from 'irc';
 
-const client = new irc.Client('clover.zeronode.net', 'LIT_Bot', {
-  port: 6667,
-  secure: false,
+const client = new irc.Client('localhost', 'ircbots', {
+  port: 6697,
+  secure: true,
+  password: 'ircbots/zeronode:bassist89',
+  selfSigned: true,
+  certExpired: true,
   autoRejoin: false,
   autoConnect: true,
-  channels: ['#bowlafterbowl'],
-  realName: 'LIT Bot',
+  channels: ['#BowlAfterBowl'],
+  realName: 'LIT Bot Test',
   userName: 'lit_bot'
 });
 
 client.on('registered', () => {
   console.log('Connected to IRC');
   setTimeout(() => {
-    client.say('#bowlafterbowl', 'fixed');
+    const message = process.argv[2] || '🔴 TEST: LIT_Bot IRC connection through ZNC working!';
+    client.say('#BowlAfterBowl', message);
     console.log('Message sent');
     setTimeout(() => {
       client.disconnect();
