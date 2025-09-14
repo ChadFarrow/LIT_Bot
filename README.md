@@ -48,18 +48,19 @@ Create a `.env` file with:
 # Required: Your Nostr private key
 LIT_BOT_NSEC=your_nostr_private_key_here
 
-# Optional: Port (default: 3334)
-PORT=3334
+# Optional: Port (default: 3336)
+PORT=3336
 
 # Optional: Test mode
 TEST_MODE=false
 
 # Optional: IRC Configuration
 IRC_ENABLED=true
-IRC_SERVER=irc.libera.chat
-IRC_PORT=6667
-IRC_NICKNAME=LITBot
-IRC_CHANNELS=#noagenda,#podcasting
+IRC_SERVER=localhost  # Using ZNC bouncer
+IRC_PORT=6697
+IRC_SECURE=true
+IRC_NICKNAME=LIT_Bot++
+IRC_CHANNELS=#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre
 ```
 
 ## How It Works
@@ -99,14 +100,14 @@ npm run status     # Get status info
 - **Monitoring**: Hive blockchain operations stream
 - **Relays**: relay.damus.io, relay.nostr.band, nostr.mom, relay.primal.net
 - **IRC**: Supports any IRC network (Libera.Chat, No Agenda, etc.)
-- **Port**: 3334 (configurable)
+- **Port**: 3336 (configurable)
 
 ## Development
 
 1. **Test Mode**: Set `TEST_MODE=true` to log without posting
-2. **Local Testing**: Bot runs on `http://localhost:3334`
-3. **Health Check**: `curl http://localhost:3334/health`
-4. **Status**: `curl http://localhost:3334/status`
+2. **Local Testing**: Bot runs on `http://localhost:3336`
+3. **Health Check**: `curl http://localhost:3336/health`
+4. **Status**: `curl http://localhost:3336/status`
 
 ## IRC Setup
 
@@ -114,10 +115,10 @@ npm run status     # Get status info
 To post to the No Agenda Troll Room:
 ```bash
 IRC_ENABLED=true
-IRC_SERVER=irc.noagenda.stream
+IRC_SERVER=irc.zeronode.net
 IRC_PORT=6667
-IRC_NICKNAME=LITBot
-IRC_CHANNELS=#noagenda
+IRC_NICKNAME=LIT_Bot++
+IRC_CHANNELS=#BowlAfterBowl
 ```
 
 ### Other IRC Networks
