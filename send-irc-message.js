@@ -1,11 +1,9 @@
 import irc from 'irc';
 
-const client = new irc.Client('localhost', 'ircbots', {
-  port: 6697,
-  secure: true,
-  password: 'ircbots/zeronode:bassist89',
-  selfSigned: true,
-  certExpired: true,
+const client = new irc.Client('irc.zeronode.net', 'LITBot', {
+  port: 6667,
+  secure: false,
+  password: '',
   autoRejoin: false,
   autoConnect: true,
   channels: ['#BowlAfterBowl'],
