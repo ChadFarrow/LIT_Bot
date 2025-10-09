@@ -160,9 +160,15 @@ ${showTitle}
 // Create LIT Bot instance
 function createLITBot() {
   const botNsec = process.env.LIT_BOT_NSEC;
-  
+
+  logger.info('createLITBot called', {
+    hasNsec: !!botNsec,
+    nsecLength: botNsec?.length,
+    nsecPrefix: botNsec?.substring(0, 10)
+  });
+
   if (!botNsec) {
-    console.warn('LIT_BOT_NSEC environment variable not set');
+    logger.error('LIT_BOT_NSEC environment variable not set');
     return null;
   }
 
