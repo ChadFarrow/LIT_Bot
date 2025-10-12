@@ -33,8 +33,8 @@
 
 ### Starting the Bot
 ```bash
-cd /home/server/bots/LIT_Bot
-PORT=3334 IRC_ENABLED=true IRC_SERVER=localhost IRC_PORT=6697 IRC_SECURE=true IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD="ircbots/zeronode:bassist89" IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1l8e9jjgwx6h7a6rjxn5r7hrlx5qvqr2fkqxhgc44vc9qhqmfhk2qmxnhkm npm start
+cd /home/server/LIT_Bot
+PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Environment Variables Needed
@@ -48,12 +48,12 @@ TEST_MODE=true         # For testing without posting
 
 # IRC Configuration (required for ZeroNode IRC posting)
 IRC_ENABLED=true
-IRC_SERVER=localhost         # ZNC bouncer on localhost
-IRC_PORT=6697               # ZNC SSL port
-IRC_SECURE=true             # Use SSL for ZNC connection
-IRC_USERNAME=ircbots        # ZNC username
+IRC_SERVER=irc.zeronode.net  # Direct connection to ZeroNode
+IRC_PORT=6667               # Standard IRC port
+IRC_SECURE=false            # No SSL needed for ZeroNode
+IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
-IRC_PASSWORD="ircbots/zeronode:bassist89"  # ZNC password format: username/network:password
+IRC_PASSWORD=               # No password needed for ZeroNode
 IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre"  # Channels to join
 ```
 
@@ -115,7 +115,7 @@ pkill -f lit-bot
 export TEST_MODE=true
 
 # Start bot in test mode (with all IRC settings)
-TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=localhost IRC_PORT=6697 IRC_SECURE=true IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD="ircbots/zeronode:bassist89" IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1l8e9jjgwx6h7a6rjxn5r7hrlx5qvqr2fkqxhgc44vc9qhqmfhk2qmxnhkm npm start
+TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Post Format
