@@ -492,6 +492,16 @@ ${showInfo.title}
                                showInfo.title.toLowerCase().includes('pc2.0') ||
                                showInfo.title.toLowerCase().includes('pc 2.0');
         
+        // Debug logging
+        logger.info('IRC Channel Routing Debug:', {
+          title: showInfo.title,
+          isHomegrownHits,
+          isLightningThrashes,
+          isDoerfelVerse,
+          isMuttonMeadMusic,
+          isPodcasting20
+        });
+        
         if (isLightningThrashes) {
           // Post to #SirLibre channel
           const success = await ircClient.postMessage(
@@ -505,13 +515,13 @@ ${showInfo.title}
             logger.warn('Failed to post Lightning Thrashes notification to IRC');
           }
         } else if (isPodcasting20) {
-          // Post to #podcasting20 channel
+          // Post to both #podcasting20 and #BowlAfterBowl channels
           const success = await ircClient.postMessage(
             `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
-            ['#podcasting20']
+            ['#podcasting20', '#BowlAfterBowl']
           );
           if (success) {
-            logger.info('Posted Podcasting 2.0 notification to #podcasting20 channel');
+            logger.info('Posted Podcasting 2.0 notification to #podcasting20 and #BowlAfterBowl channels');
             stats.ircPosts++;
           } else {
             logger.warn('Failed to post Podcasting 2.0 notification to IRC');
