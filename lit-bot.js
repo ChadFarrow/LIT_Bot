@@ -487,6 +487,10 @@ ${showInfo.title}
         const isMuttonMeadMusic = showInfo.title.toLowerCase().includes('mutton') && 
                                   showInfo.title.toLowerCase().includes('mead') && 
                                   showInfo.title.toLowerCase().includes('music');
+        // Check if this is Podcasting 2.0 (goes to #podcasting20)
+        const isPodcasting20 = showInfo.title.toLowerCase().includes('podcasting 2.0') ||
+                               showInfo.title.toLowerCase().includes('pc2.0') ||
+                               showInfo.title.toLowerCase().includes('pc 2.0');
         
         if (isLightningThrashes) {
           // Post to #SirLibre channel
@@ -499,6 +503,18 @@ ${showInfo.title}
             stats.ircPosts++;
           } else {
             logger.warn('Failed to post Lightning Thrashes notification to IRC');
+          }
+        } else if (isPodcasting20) {
+          // Post to #podcasting20 channel
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#podcasting20']
+          );
+          if (success) {
+            logger.info('Posted Podcasting 2.0 notification to #podcasting20 channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Podcasting 2.0 notification to IRC');
           }
         } else if (isHomegrownHits) {
           // Post to both #HomegrownHits and #BowlAfterBowl channels

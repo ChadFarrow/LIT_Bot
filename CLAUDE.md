@@ -97,6 +97,7 @@ pkill -f lit-bot
 
 ## IRC Channel Routing Rules
 - **Lightning Thrashes** → `#SirLibre`
+- **Podcasting 2.0** → `#podcasting20`
 - **Homegrown Hits/Poetry on Tape/BitPunk.fm Unwound** → `#HomegrownHits` + `#BowlAfterBowl` (with "DuhLaurien++" tag)
 - **Into The Doerfel-Verse** → `#DoerfelVerse` + `#BowlAfterBowl`
 - **Mutton, Mead & Music** → `#DoerfelVerse` + `#HomegrownHits` + `#BowlAfterBowl`
