@@ -8,6 +8,7 @@ import { Relay } from 'nostr-tools/relay';
 import Parser from 'rss-parser';
 import { logger } from './lib/logger.js';
 import { IRCClient } from './lib/irc-client.js';
+import { IRCMonitor } from './lib/irc-monitor.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
@@ -55,9 +56,17 @@ const ircConfig = {
 
 // Create IRC client if configured (but don't connect until needed)
 let ircClient = null;
+let ircMonitor = null;
 if (process.env.IRC_ENABLED === 'true') {
   ircClient = new IRCClient(ircConfig);
   logger.info('IRC client initialized for connect-when-needed posting');
+  
+  // Create IRC monitor for ppwatch detection (Homegrown Hits only)
+  if (process.env.MONITOR_PPWATCH !== 'false') {
+    ircMonitor = new IRCMonitor(ircConfig);
+    ircMonitor.connect();
+    logger.info('IRC Monitor started for ppwatch detection in #HomegrownHits');
+  }
 }
 
 // LIT Bot Nostr configuration
@@ -213,17 +222,35 @@ class ReminderSystem {
     const hour = nyTime.getHours();
     const minute = nyTime.getMinutes();
 
-    // Check if it's Thursday (4) or Sunday (0) at 10:00 AM
+    // Check if it's Thursday (4) or Sunday (0) at 10:00 AM for phifer++
     if ((dayOfWeek === 4 || dayOfWeek === 0) && hour === 10 && minute === 0) {
-      logger.info('Scheduled reminder triggered', { 
+      logger.info('Scheduled phifer++ reminder triggered', { 
         day: dayOfWeek === 4 ? 'Thursday' : 'Sunday', 
         time: `${hour}:${minute} NY time` 
       });
-      this.postReminder();
+      this.postPhiferReminder();
+    }
+
+    // Check if it's Thursday (4) at 8:00 PM for DuhLaurien++
+    if (dayOfWeek === 4 && hour === 20 && minute === 0) {
+      logger.info('Scheduled DuhLaurien++ reminder triggered', { 
+        day: 'Thursday', 
+        time: `${hour}:${minute} NY time` 
+      });
+      this.postDuhLaurienReminder();
+    }
+
+    // Check if it's Saturday (6) at 8:00 PM for SirLibre++
+    if (dayOfWeek === 6 && hour === 20 && minute === 0) {
+      logger.info('Scheduled SirLibre++ reminder triggered', { 
+        day: 'Saturday', 
+        time: `${hour}:${minute} NY time` 
+      });
+      this.postSirLibreReminder();
     }
   }
 
-  async postReminder() {
+  async postPhiferReminder() {
     if (!ircClient) return;
 
     try {
@@ -231,13 +258,49 @@ class ReminderSystem {
       const success = await ircClient.postMessage(message, ['#BowlAfterBowl']);
       
       if (success) {
-        logger.info('Posted scheduled reminder to #BowlAfterBowl');
+        logger.info('Posted scheduled phifer++ reminder to #BowlAfterBowl');
         stats.ircPosts++;
       } else {
-        logger.warn('Failed to post scheduled reminder to IRC');
+        logger.warn('Failed to post phifer++ reminder to IRC');
       }
     } catch (error) {
-      logger.error('Error posting scheduled reminder:', error);
+      logger.error('Error posting phifer++ reminder:', error);
+    }
+  }
+
+  async postDuhLaurienReminder() {
+    if (!ircClient) return;
+
+    try {
+      const message = 'HEY! DuhLaurien++ are we LIT!!';
+      const success = await ircClient.postMessage(message, ['#HomegrownHits']);
+      
+      if (success) {
+        logger.info('Posted scheduled DuhLaurien++ reminder to #HomegrownHits');
+        stats.ircPosts++;
+      } else {
+        logger.warn('Failed to post DuhLaurien++ reminder to IRC');
+      }
+    } catch (error) {
+      logger.error('Error posting DuhLaurien++ reminder:', error);
+    }
+  }
+
+  async postSirLibreReminder() {
+    if (!ircClient) return;
+    
+    try {
+      const message = 'Hey SirLibre++ are you recording this?';
+      const success = await ircClient.postMessage(message, ['#SirLibre']);
+      
+      if (success) {
+        logger.info('Posted scheduled SirLibre++ reminder to #SirLibre');
+        stats.ircPosts++;
+      } else {
+        logger.warn('Failed to post SirLibre++ reminder to IRC');
+      }
+    } catch (error) {
+      logger.error('Error posting SirLibre++ reminder:', error);
     }
   }
 
@@ -259,6 +322,7 @@ class MastodonRSSMonitor {
     this.processedPosts = this.loadProcessedPosts();
     this.rssUrl = 'https://podcastindex.social/@PodcastsLive.rss';
     this.pollInterval = 60000; // 1 minute
+    this.activeRetries = new Map(); // Track active retry loops for Homegrown Hits
   }
 
   loadProcessedPosts() {
@@ -528,13 +592,49 @@ ${showInfo.title}
           }
         } else if (isHomegrownHits) {
           // Post to both #HomegrownHits and #BowlAfterBowl channels
-          const success = await ircClient.postMessage(
-            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`,
-            ['#HomegrownHits', '#BowlAfterBowl']
-          );
+          const messageKey = `homegrown-${Date.now()}`;
+          const message = `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing DuhLaurien++`;
+          
+          const success = await ircClient.postMessage(message, ['#HomegrownHits', '#BowlAfterBowl']);
+          
           if (success) {
             logger.info('Posted Homegrown Hits notification to #HomegrownHits and #BowlAfterBowl channels');
             stats.ircPosts++;
+            
+            // Start retry loop for ppwatch confirmation (only if monitor is connected)
+            if (ircMonitor && ircMonitor.isConnected) {
+              let retryCount = 0;
+              const maxRetries = 9; // 9 retries + initial = 10 total posts
+              
+              logger.info('Starting ppwatch confirmation monitoring for Homegrown Hits');
+              
+              // Set up retry interval
+              const retryInterval = setInterval(async () => {
+                retryCount++;
+                logger.info(`Retrying Homegrown Hits notification (${retryCount}/${maxRetries}) - waiting for ppwatch confirmation`);
+                
+                await ircClient.postMessage(message, ['#HomegrownHits', '#BowlAfterBowl']);
+                stats.ircPosts++;
+                
+                if (retryCount >= maxRetries) {
+                  clearInterval(retryInterval);
+                  this.activeRetries.delete(messageKey);
+                  logger.info('Reached max retries for Homegrown Hits notification - stopping retries');
+                }
+              }, 2 * 60 * 1000); // 2 minutes
+              
+              this.activeRetries.set(messageKey, retryInterval);
+              
+              // Listen for ppwatch confirmation
+              const confirmHandler = () => {
+                clearInterval(retryInterval);
+                this.activeRetries.delete(messageKey);
+                logger.info('ppwatch confirmed Homegrown Hits - stopping retries');
+                ircMonitor.removeListener('homegrown-hits-confirmed', confirmHandler);
+              };
+              
+              ircMonitor.once('homegrown-hits-confirmed', confirmHandler);
+            }
           } else {
             logger.warn('Failed to post Homegrown Hits notification to IRC');
           }
@@ -601,7 +701,8 @@ app.get('/api/stats', (req, res) => {
     configured: !!process.env.LIT_BOT_NSEC,
     testMode: process.env.TEST_MODE === 'true',
     ircEnabled: process.env.IRC_ENABLED === 'true',
-    ircStatus: ircClient ? ircClient.getStatus() : null
+    ircStatus: ircClient ? ircClient.getStatus() : null,
+    ircMonitorStatus: ircMonitor ? ircMonitor.getStatus() : null
   });
 });
 
