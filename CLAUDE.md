@@ -131,8 +131,32 @@ When a show goes live, LIT_Bot posts:
 ```
 
 ## Technical Details
-- **Hive Monitoring**: Streams operations from Hive blockchain
-- **Operation Filtering**: Looks for custom_json with id='podping'
-- **Live Detection**: Checks for reason='live' in PodPing data
-- **Title Extraction**: Basic URL parsing to extract show names
-- **Duplicate Prevention**: Tracks processed operations to avoid reposts
+- **RSS Monitoring**: Polls @PodcastsLive@podcastindex.social RSS feed every 60 seconds
+- **Live Detection**: Detects live shows from RSS feed content
+- **Title Extraction**: Parses show titles and stream URLs from RSS posts
+- **Duplicate Prevention**: Tracks processed posts in rss-state.json to avoid reposts
+- **IRC Integration**: Maintains persistent IRC connection to avoid ZeroNode connection limits
+
+## Current Status (December 18, 2025)
+
+### Bot Health ✅ HEALTHY
+- **Process**: Running (PID varies)
+- **Port**: 3334
+- **IRC**: Connected to irc.zeronode.net with persistent connection
+- **RSS**: Polling @PodcastsLive every 60 seconds
+- **Nostr**: Ready for posting to 4 relays
+- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre
+
+### Recent Fixes (December 18, 2025)
+- **IRC Connection Issue**: Fixed ZeroNode connection limit problem
+  - Problem: IRC Monitor + IRC Client both trying to connect = connection limit exceeded
+  - Solution: Disabled IRC Monitor, established single persistent IRC connection
+  - Result: IRC posting now works correctly alongside Nostr posting
+
+### System Integration
+**Other Bots on Server:**
+1. **BoostBot** (Port 3333) - Helipad webhook processing
+2. **BoostAfterBoost** (Port 3335) - Boost processing  
+3. **LibreRelayBot** (No HTTP port) - SirLibre's IRC relay bot
+
+**ZeroNode IRC Connections**: 4/4 bots connected within connection limit

@@ -54,18 +54,30 @@ const ircConfig = {
   channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#BowlAfterBowl', '#HomegrownHits', '#SirLibre', '#DoerfelVerse']
 };
 
-// Create IRC client if configured (but don't connect until needed)
+// Create IRC client if configured and establish persistent connection
 let ircClient = null;
 let ircMonitor = null;
 if (process.env.IRC_ENABLED === 'true') {
   ircClient = new IRCClient(ircConfig);
-  logger.info('IRC client initialized for connect-when-needed posting');
+  
+  // Establish persistent connection at startup
+  ircClient.connect()
+    .then(() => {
+      logger.info('IRC client connected and ready for posting');
+    })
+    .catch((error) => {
+      logger.error('Failed to establish persistent IRC connection:', error);
+      logger.info('Will fall back to connect-when-needed approach');
+    });
   
   // Create IRC monitor for ppwatch detection (Homegrown Hits only)
-  if (process.env.MONITOR_PPWATCH !== 'false') {
+  // Temporarily disabled to avoid connection limit issues with ZeroNode
+  if (process.env.MONITOR_PPWATCH === 'true') {
     ircMonitor = new IRCMonitor(ircConfig);
     ircMonitor.connect();
     logger.info('IRC Monitor started for ppwatch detection in #HomegrownHits');
+  } else {
+    logger.info('IRC Monitor disabled to avoid ZeroNode connection limits');
   }
 }
 
