@@ -34,7 +34,7 @@
 ### Starting the Bot
 ```bash
 cd /home/server/LIT_Bot
-PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Environment Variables Needed
@@ -54,7 +54,7 @@ IRC_SECURE=false            # No SSL needed for ZeroNode
 IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
 IRC_PASSWORD=               # No password needed for ZeroNode
-IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre"  # Channels to join
+IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom"  # Channels to join
 ```
 
 ### Checking Bot Status
@@ -101,6 +101,7 @@ pkill -f lit-bot
 - **Homegrown Hits/Poetry on Tape/BitPunk.fm Unwound** → `#HomegrownHits` + `#BowlAfterBowl` (with "DuhLaurien++" tag)
 - **Into The Doerfel-Verse** → `#DoerfelVerse` + `#BowlAfterBowl`
 - **Mutton, Mead & Music** → `#DoerfelVerse` + `#HomegrownHits` + `#BowlAfterBowl`
+- **Sch3m3s shows** (Between The Sch3m3s, Behind the Schemes/B4TS) → `#greenroom`
 - **All other shows** → `#BowlAfterBowl`
 
 ## Development Workflow
@@ -116,7 +117,7 @@ pkill -f lit-bot
 export TEST_MODE=true
 
 # Start bot in test mode (with all IRC settings)
-TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Post Format
@@ -145,7 +146,7 @@ When a show goes live, LIT_Bot posts:
 - **IRC**: Connected to irc.zeronode.net with persistent connection
 - **RSS**: Polling @PodcastsLive every 60 seconds
 - **Nostr**: Ready for posting to 4 relays
-- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre
+- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom
 
 ### Recent Fixes (December 18, 2025)
 - **IRC Connection Issue**: Fixed ZeroNode connection limit problem

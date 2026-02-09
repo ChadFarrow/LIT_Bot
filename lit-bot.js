@@ -567,7 +567,12 @@ ${showInfo.title}
         const isPodcasting20 = showInfo.title.toLowerCase().includes('podcasting 2.0') ||
                                showInfo.title.toLowerCase().includes('pc2.0') ||
                                showInfo.title.toLowerCase().includes('pc 2.0');
-        
+        // Check if this is a Sch3m3s show (goes to #greenroom)
+        const isSch3m3s = showInfo.title.toLowerCase().includes('sch3m3s') ||
+                          showInfo.title.toLowerCase().includes('btwts') ||
+                          showInfo.title.toLowerCase().includes('b4ts') ||
+                          showInfo.title.toLowerCase().includes('behind the sch');
+
         // Debug logging
         logger.info('IRC Channel Routing Debug:', {
           title: showInfo.title,
@@ -575,7 +580,8 @@ ${showInfo.title}
           isLightningThrashes,
           isDoerfelVerse,
           isMuttonMeadMusic,
-          isPodcasting20
+          isPodcasting20,
+          isSch3m3s
         });
         
         if (isLightningThrashes) {
@@ -673,6 +679,18 @@ ${showInfo.title}
             stats.ircPosts++;
           } else {
             logger.warn('Failed to post Mutton, Mead & Music notification to IRC');
+          }
+        } else if (isSch3m3s) {
+          // Post to #greenroom channel for Sch3m3s shows
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#greenroom']
+          );
+          if (success) {
+            logger.info('Posted Sch3m3s notification to #greenroom channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Sch3m3s notification to IRC');
           }
         } else {
           // Post to #BowlAfterBowl channel for other shows
