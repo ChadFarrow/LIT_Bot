@@ -55,6 +55,7 @@ IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
 IRC_PASSWORD=               # No password needed for ZeroNode
 IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom"  # Channels to join
+IRC_NICKSERV_PASSWORD=      # NickServ password — ghosts stale sessions and identifies on connect
 ```
 
 ### Checking Bot Status
@@ -137,18 +138,24 @@ When a show goes live, LIT_Bot posts:
 - **Title Extraction**: Parses show titles and stream URLs from RSS posts
 - **Duplicate Prevention**: Tracks processed posts in rss-state.json to avoid reposts
 - **IRC Integration**: Maintains persistent IRC connection to avoid ZeroNode connection limits
+- **NickServ Authentication**: If `IRC_NICKSERV_PASSWORD` is set, the bot identifies to NickServ on connect and ghosts any stale session holding its nick. The `LIT_Bot` nick is registered to the ChadF NickServ account on ZeroNode.
+- **Nick Mismatch Handling**: IRC client compares against `this.client.nick` (actual server-assigned nick), not the configured nickname. This ensures `joinedChannels` is populated even if the server assigns a different nick (e.g., `LIT_Bot1`).
 
-## Current Status (December 18, 2025)
+## Current Status (March 19, 2026)
 
 ### Bot Health ✅ HEALTHY
 - **Process**: Running (PID varies)
 - **Port**: 3334
-- **IRC**: Connected to irc.zeronode.net with persistent connection
+- **IRC**: Connected to irc.zeronode.net with persistent connection + NickServ auth
 - **RSS**: Polling @PodcastsLive every 60 seconds
 - **Nostr**: Ready for posting to 4 relays
 - **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom
 
-### Recent Fixes (December 18, 2025)
+### Recent Fixes (March 19, 2026)
+- **IRC Nick Mismatch Bug**: Fixed `irc-client.js` to use `this.client.nick` instead of `this.config.nickname` in join/part/kick handlers. When the server assigned a different nick (e.g., `LIT_Bot1`), `joinedChannels` was never populated, causing the bot to timeout trying to re-join channels it was already in.
+- **NickServ Authentication**: Added NickServ GHOST + IDENTIFY on connect to reclaim the `LIT_Bot` nick from stale sessions and protect it from being taken.
+
+### Previous Fixes (December 18, 2025)
 - **IRC Connection Issue**: Fixed ZeroNode connection limit problem
   - Problem: IRC Monitor + IRC Client both trying to connect = connection limit exceeded
   - Solution: Disabled IRC Monitor, established single persistent IRC connection
