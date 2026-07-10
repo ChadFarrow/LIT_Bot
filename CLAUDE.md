@@ -151,6 +151,9 @@ When a show goes live, LIT_Bot posts:
 - **Nostr**: Ready for posting to 4 relays
 - **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom
 
+### Recent Fixes (July 10, 2026)
+- **IRC Channel Case Bug**: `irc-client.js` tracked `joinedChannels` in a case-sensitive `Set`. ZeroNode/ZNC echoes JOINs back lowercased (e.g. `#homegrownhits`) while the code requests `#HomegrownHits`, so `joinedChannels.has('#HomegrownHits')` returned false, the bot tried to re-join a channel it was already in, hit the 15s `joinChannels` timeout, and failed the post. This silently killed IRC posts to #HomegrownHits (the Thursday DuhLaurien++ reminder and the Homegrown Hits live notification) — Nostr posting was unaffected. **Trigger:** a ZeroNode server reset forced the first channel rejoin in weeks, exposing the latent bug. **Fix:** added `markJoined`/`markLeft`/`hasJoined` helpers that lowercase-normalize channel names, and routed all joined-state tracking through them so channel matching is case-insensitive. Note: `joinedChannels` is now stored lowercased.
+
 ### Recent Fixes (March 19, 2026)
 - **IRC Nick Mismatch Bug**: Fixed `irc-client.js` to use `this.client.nick` instead of `this.config.nickname` in join/part/kick handlers. When the server assigned a different nick (e.g., `LIT_Bot1`), `joinedChannels` was never populated, causing the bot to timeout trying to re-join channels it was already in.
 - **NickServ Authentication**: Added NickServ GHOST + IDENTIFY on connect to reclaim the `LIT_Bot` nick from stale sessions and protect it from being taken.
