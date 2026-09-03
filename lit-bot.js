@@ -35,7 +35,7 @@ const stats = {
   lastActivity: null,
   relayStats: {
     'wss://relay.damus.io': { success: 0, failed: 0 },
-    'wss://relay.nostr.band': { success: 0, failed: 0 },
+    'wss://nos.lol': { success: 0, failed: 0 },
     'wss://nostr.mom': { success: 0, failed: 0 },
     'wss://relay.primal.net': { success: 0, failed: 0 }
   }
@@ -83,7 +83,7 @@ if (process.env.IRC_ENABLED === 'true') {
 
 // LIT Bot Nostr configuration
 class LITBot {
-  constructor(nsec, relays = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://nostr.mom', 'wss://relay.primal.net']) {
+  constructor(nsec, relays = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://nostr.mom', 'wss://relay.primal.net']) {
     this.nsec = nsec;
     this.relays = relays;
   }

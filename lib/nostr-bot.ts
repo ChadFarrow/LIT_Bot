@@ -56,7 +56,7 @@ class NostrBot {
   private nsec: string;
   private relays: string[];
 
-  constructor(nsec: string, relays: string[] = ['wss://relay.damus.io', 'wss://relay.nostr.band', 'wss://relay.primal.net', 'wss://7srr7chyc6vlhzpc2hl6lyungvluohzrmt76kbs4kmydhrxoakkbquad.local/', 'wss://chadf.nostr1.com/']) {
+  constructor(nsec: string, relays: string[] = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://chadf.nostr1.com/']) {
     this.nsec = nsec;
     this.relays = relays;
   }
