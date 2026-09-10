@@ -51,7 +51,7 @@ const ircConfig = {
   userName: process.env.IRC_USERNAME || 'litbot',
   realName: process.env.IRC_REALNAME || 'LIT Bot - Live Podcast Notifications',
   password: process.env.IRC_PASSWORD,
-  channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#BowlAfterBowl', '#HomegrownHits', '#SirLibre', '#DoerfelVerse']
+  channels: process.env.IRC_CHANNELS ? process.env.IRC_CHANNELS.split(',') : ['#BowlAfterBowl', '#HomegrownHits', '#SirLibre', '#DoerfelVerse', '#candr']
 };
 
 // Create IRC client if configured and establish persistent connection
@@ -572,6 +572,10 @@ ${showInfo.title}
                           showInfo.title.toLowerCase().includes('btwts') ||
                           showInfo.title.toLowerCase().includes('b4ts') ||
                           showInfo.title.toLowerCase().includes('behind the sch');
+        // Check if this is Chad and Reeds (goes to #candr)
+        const isChadAndReeds = showInfo.title.toLowerCase().includes('chad and reeds') ||
+                               showInfo.title.toLowerCase().includes('chad & reeds') ||
+                               showInfo.title.toLowerCase().includes('chadandreeds');
 
         // Debug logging
         logger.info('IRC Channel Routing Debug:', {
@@ -581,7 +585,8 @@ ${showInfo.title}
           isDoerfelVerse,
           isMuttonMeadMusic,
           isPodcasting20,
-          isSch3m3s
+          isSch3m3s,
+          isChadAndReeds
         });
         
         if (isLightningThrashes) {
@@ -679,6 +684,18 @@ ${showInfo.title}
             stats.ircPosts++;
           } else {
             logger.warn('Failed to post Mutton, Mead & Music notification to IRC');
+          }
+        } else if (isChadAndReeds) {
+          // Post to #candr channel for Chad and Reeds
+          const success = await ircClient.postMessage(
+            `🔴 LIVE NOW! ${showInfo.title} - Tune in: ${showInfo.url} #LivePodcast #PC20 #PodPing`,
+            ['#candr']
+          );
+          if (success) {
+            logger.info('Posted Chad and Reeds notification to #candr channel');
+            stats.ircPosts++;
+          } else {
+            logger.warn('Failed to post Chad and Reeds notification to IRC');
           }
         } else if (isSch3m3s) {
           // Post to #greenroom channel for Sch3m3s shows

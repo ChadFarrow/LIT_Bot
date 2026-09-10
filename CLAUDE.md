@@ -34,7 +34,7 @@
 ### Starting the Bot
 ```bash
 cd /home/server/LIT_Bot
-PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom,#candr" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Environment Variables Needed
@@ -54,7 +54,7 @@ IRC_SECURE=false            # No SSL needed for ZeroNode
 IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
 IRC_PASSWORD=               # No password needed for ZeroNode
-IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom"  # Channels to join
+IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom,#candr"  # Channels to join
 IRC_NICKSERV_PASSWORD=      # NickServ password — ghosts stale sessions and identifies on connect
 ```
 
@@ -103,6 +103,7 @@ pkill -f lit-bot
 - **Into The Doerfel-Verse** → `#DoerfelVerse` + `#BowlAfterBowl`
 - **Mutton, Mead & Music** → `#DoerfelVerse` + `#HomegrownHits` + `#BowlAfterBowl`
 - **Sch3m3s shows** (Between The Sch3m3s, Behind the Schemes/B4TS) → `#greenroom`
+- **Chad and Reeds** → `#candr`
 - **All other shows** → `#BowlAfterBowl`
 
 ## Development Workflow
@@ -118,7 +119,7 @@ pkill -f lit-bot
 export TEST_MODE=true
 
 # Start bot in test mode (with all IRC settings)
-TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom,#candr" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
 ```
 
 ### Post Format
@@ -149,7 +150,7 @@ When a show goes live, LIT_Bot posts:
 - **IRC**: Connected to irc.zeronode.net with persistent connection + NickServ auth
 - **RSS**: Polling @PodcastsLive every 60 seconds
 - **Nostr**: Ready for posting to 4 relays
-- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom
+- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom, #candr
 
 ### Recent Fixes (July 10, 2026)
 - **IRC Channel Case Bug**: `irc-client.js` tracked `joinedChannels` in a case-sensitive `Set`. ZeroNode/ZNC echoes JOINs back lowercased (e.g. `#homegrownhits`) while the code requests `#HomegrownHits`, so `joinedChannels.has('#HomegrownHits')` returned false, the bot tried to re-join a channel it was already in, hit the 15s `joinChannels` timeout, and failed the post. This silently killed IRC posts to #HomegrownHits (the Thursday DuhLaurien++ reminder and the Homegrown Hits live notification) — Nostr posting was unaffected. **Trigger:** a ZeroNode server reset forced the first channel rejoin in weeks, exposing the latent bug. **Fix:** added `markJoined`/`markLeft`/`hasJoined` helpers that lowercase-normalize channel names, and routed all joined-state tracking through them so channel matching is case-insensitive. Note: `joinedChannels` is now stored lowercased.
