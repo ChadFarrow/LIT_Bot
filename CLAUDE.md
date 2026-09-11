@@ -62,7 +62,7 @@ IRC_SECURE=false            # plaintext: the bridge network never leaves the box
 IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
 IRC_PASSWORD=ircbots@lit/zeronode:<znc password>   # clientid form -- see below
-IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom"  # Channels to join
+IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom,#candr"  # Channels to join
 IRC_NICKSERV_PASSWORD=      # NickServ password — ghosts stale sessions and identifies on connect
 ```
 
@@ -102,6 +102,7 @@ ssh root@104.237.150.197 'cd /opt/bots && docker compose stop lit-bot'
 - **Into The Doerfel-Verse** → `#DoerfelVerse` + `#BowlAfterBowl`
 - **Mutton, Mead & Music** → `#DoerfelVerse` + `#HomegrownHits` + `#BowlAfterBowl`
 - **Sch3m3s shows** (Between The Sch3m3s, Behind the Schemes/B4TS) → `#greenroom`
+- **Chad and Reeds** → `#candr`
 - **All other shows** → `#BowlAfterBowl`
 
 ## Development Workflow
@@ -156,7 +157,7 @@ When a show goes live, LIT_Bot posts:
 - **IRC**: Connected to irc.zeronode.net with persistent connection + NickServ auth
 - **RSS**: Polling @PodcastsLive every 60 seconds
 - **Nostr**: Ready for posting to 4 relays
-- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom
+- **Channels**: #BowlAfterBowl, #HomegrownHits, #DoerfelVerse, #SirLibre, #podcasting20, #greenroom, #candr
 
 ### Recent Fixes (July 10, 2026)
 - **IRC Channel Case Bug**: `irc-client.js` tracked `joinedChannels` in a case-sensitive `Set`. ZeroNode/ZNC echoes JOINs back lowercased (e.g. `#homegrownhits`) while the code requests `#HomegrownHits`, so `joinedChannels.has('#HomegrownHits')` returned false, the bot tried to re-join a channel it was already in, hit the 15s `joinChannels` timeout, and failed the post. This silently killed IRC posts to #HomegrownHits (the Thursday DuhLaurien++ reminder and the Homegrown Hits live notification) — Nostr posting was unaffected. **Trigger:** a ZeroNode server reset forced the first channel rejoin in weeks, exposing the latent bug. **Fix:** added `markJoined`/`markLeft`/`hasJoined` helpers that lowercase-normalize channel names, and routed all joined-state tracking through them so channel matching is case-insensitive. Note: `joinedChannels` is now stored lowercased.
