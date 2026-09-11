@@ -32,15 +32,23 @@
 ## Bot Management Commands
 
 ### Starting the Bot
+A container in the `/opt/bots` stack on the candr VPS. Deployed from the
+`thelounge-candr` repo with `./deploy-bots.sh 104.237.150.197`:
 ```bash
-cd /home/server/LIT_Bot
-PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+ssh root@104.237.150.197 'cd /opt/bots && docker compose up -d lit-bot'
+```
+All the non-secret IRC settings live in `bots/docker-compose.yml`; `LIT_BOT_NSEC`
+and `IRC_PASSWORD` live in `/opt/bots/env/lit.env`, mode 600, and nowhere in git.
+
+To run from a checkout locally:
+```bash
+LIT_BOT_NSEC=... IRC_ENABLED=true IRC_SERVER=irc.zeronode.net npm start
 ```
 
 ### Environment Variables Needed
 ```bash
-# Required
-LIT_BOT_NSEC=nsec1l8e9jjgwx6h7a6rjxn5r7hrlx5qvqr2fkqxhgc44vc9qhqmfhk2qmxnhkm  # Your LIT Bot Nostr private key
+# Required -- set in /opt/bots/env/lit.env, never committed
+LIT_BOT_NSEC=nsec1...  # Your LIT Bot Nostr private key
 
 # Optional
 PORT=3334              # Default port (changed from 3336)
@@ -48,12 +56,12 @@ TEST_MODE=true         # For testing without posting
 
 # IRC Configuration (required for ZeroNode IRC posting)
 IRC_ENABLED=true
-IRC_SERVER=irc.zeronode.net  # Direct connection to ZeroNode
-IRC_PORT=6667               # Standard IRC port
-IRC_SECURE=false            # No SSL needed for ZeroNode
+IRC_SERVER=znc              # the shared ZNC container, NOT ZeroNode directly
+IRC_PORT=6667               # ZNC's bridge-network listener
+IRC_SECURE=false            # plaintext: the bridge network never leaves the box
 IRC_USERNAME=ircbots        # IRC username
 IRC_NICKNAME=LIT_Bot        # IRC nickname (displayed in channels)
-IRC_PASSWORD=               # No password needed for ZeroNode
+IRC_PASSWORD=ircbots@lit/zeronode:<znc password>   # clientid form -- see below
 IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom"  # Channels to join
 IRC_NICKSERV_PASSWORD=      # NickServ password — ghosts stale sessions and identifies on connect
 ```
@@ -61,10 +69,7 @@ IRC_NICKSERV_PASSWORD=      # NickServ password — ghosts stale sessions and id
 ### Checking Bot Status
 ```bash
 # Check if bot is running
-ps aux | grep -v grep | grep lit-bot
-
-# Check what's using port 3334
-lsof -i :3334
+ssh root@104.237.150.197 'cd /opt/bots && docker compose ps lit-bot'
 
 # Health check
 curl http://localhost:3334/health
@@ -78,21 +83,15 @@ curl -X POST http://localhost:3334/test-irc -H "Content-Type: application/json" 
 
 ### Stopping the Bot
 ```bash
-# Find running processes
-ps aux | grep -v grep | grep lit-bot
-
-# Kill specific processes (replace PID with actual process ID)
-kill [PID]
-
-# Or kill all lit-bot processes
-pkill -f lit-bot
+ssh root@104.237.150.197 'cd /opt/bots && docker compose stop lit-bot'
+# Do NOT docker kill it: restart: unless-stopped brings it straight back.
 ```
 
 ## Important Notes
 - **Separate Account**: Uses different Nostr account than BoostBot
-- **Port 3334**: Runs on port 3334 (changed from 3336)
+- **Port 3334**: Published on loopback only. The code default was 3336, which disagreed with the docs and pm2 and collided with LibreRelayBot; it is 3334 everywhere now.
 - **RSS Monitoring**: Monitors @PodcastsLive@podcastindex.social RSS feed for live notifications
-- **IRC Integration**: Posts to ZeroNode IRC via ZNC bouncer with smart channel routing
+- **IRC Integration**: Posts to ZeroNode via the shared ZNC container, with smart channel routing
 - **Live Focus**: Only posts when shows go live
 - **Real-time**: Near-instant notifications via RSS monitoring every minute
 
@@ -117,8 +116,11 @@ pkill -f lit-bot
 # Set test environment variable
 export TEST_MODE=true
 
-# Start bot in test mode (with all IRC settings)
-TEST_MODE=true PORT=3334 IRC_ENABLED=true IRC_SERVER=irc.zeronode.net IRC_PORT=6667 IRC_SECURE=false IRC_USERNAME=ircbots IRC_NICKNAME=LIT_Bot IRC_PASSWORD= IRC_CHANNELS="#BowlAfterBowl,#HomegrownHits,#DoerfelVerse,#SirLibre,#podcasting20,#greenroom" LIT_BOT_NSEC=nsec1j6ahr77qae2t8zvnxtml2xa3vp64uaq8fgt9rcf4ml9tpwzxs62shjvrmr npm start
+# On the VPS: add TEST_MODE=true to /opt/bots/env/lit.env and restart the container.
+ssh root@104.237.150.197 'cd /opt/bots && docker compose restart lit-bot'
+
+# From a local checkout:
+TEST_MODE=true IRC_ENABLED=true IRC_SERVER=irc.zeronode.net LIT_BOT_NSEC=... npm start
 ```
 
 ### Post Format
@@ -136,8 +138,13 @@ When a show goes live, LIT_Bot posts:
 - **RSS Monitoring**: Polls @PodcastsLive@podcastindex.social RSS feed every 60 seconds
 - **Live Detection**: Detects live shows from RSS feed content
 - **Title Extraction**: Parses show titles and stream URLs from RSS posts
-- **Duplicate Prevention**: Tracks processed posts in rss-state.json to avoid reposts
-- **IRC Integration**: Maintains persistent IRC connection to avoid ZeroNode connection limits
+- **Duplicate Prevention**: Tracks processed posts in `rss-state.json`, located via
+  `STATE_DIR` (the container bind-mounts `/opt/bots/lit-data` there). **This is the
+  only real application state in the whole bots stack** — lose it and the bot reposts
+  every live notification it has ever seen. Carry it over on any host move and back
+  it up.
+- **IRC Integration**: Maintains a persistent connection to the shared ZNC container,
+  which in turn holds the single ZeroNode connection for all three bots
 - **NickServ Authentication**: If `IRC_NICKSERV_PASSWORD` is set, the bot identifies to NickServ on connect and ghosts any stale session holding its nick. The `LIT_Bot` nick is registered to the ChadF NickServ account on ZeroNode.
 - **Nick Mismatch Handling**: IRC client compares against `this.client.nick` (actual server-assigned nick), not the configured nickname. This ensures `joinedChannels` is populated even if the server assigns a different nick (e.g., `LIT_Bot1`).
 
@@ -171,3 +178,61 @@ When a show goes live, LIT_Bot posts:
 3. **LibreRelayBot** (No HTTP port) - SirLibre's IRC relay bot
 
 **ZeroNode IRC Connections**: 4/4 bots connected within connection limit
+
+## Migration to the candr VPS (September 2026)
+
+Moved off the local Ubuntu server (`/home/server/LIT_Bot`, pm2 + a direct ZeroNode
+connection) to the candr VPS as a container in the `/opt/bots` stack.
+
+**Why:** the home IP had hit ZeroNode's per-IP connection limit and connections were
+being dropped — the reason `MONITOR_PPWATCH` and the IRC Monitor were both disabled.
+This bot connected *directly* to ZeroNode; it now goes through a shared ZNC, so all
+three bots together cost the VPS one ZeroNode connection instead of three.
+
+```
+VPS IP ──1 connection (ZNC user ircbots, nick LIT_Bot)──> ZeroNode
+          ├── lit-bot            ircbots@lit/zeronode   — posts
+          ├── boost-after-boost  ircbots@bab/zeronode   — read-only
+          └── libre-relay-bot    ircbots@lrb/zeronode   — read-only
+```
+
+Because the two reader bots are read-only, sharing this bot's nick is invisible to
+the network. The `@lit` clientid in `IRC_PASSWORD` is what keeps them distinct ZNC
+clients rather than three sessions fighting over one.
+
+**What changed in this repo:**
+- `Dockerfile` + `.dockerignore`. Unlike the other two bots this image installs dev
+  dependencies (`npm ci`, not `--omit=dev`): `npm start` is `tsx lit-bot.js` because
+  `lib/nostr-bot.ts` is TypeScript, and `tsx` is a devDependency. The builder stage
+  carries `build-essential`/`python3` for `@hiveio/dhive`'s `secp256k1 ^3.8.0`, which
+  is old enough that Node 20 prebuilds are unlikely.
+- `lit-bot.js`: `rss-state.json` now resolves via `STATE_DIR` (defaulting to
+  `__dirname`, so running from a checkout is unchanged) so the dedupe record lives on
+  a bind mount and survives image rebuilds and container recreation.
+- `lit-bot.js`: `IRC_SERVER` default `irc.libera.chat` → `irc.zeronode.net`. The old
+  default was harmless only because the env always set it — a live footgun for any
+  new deployment that forgets to.
+- `lit-bot.js`: `PORT` default 3336 → **3334**, matching the docs, `package.json`'s
+  health script and compose. 3336 also collided with LibreRelayBot.
+- `lib/irc-client.js`: dropped `encoding: 'utf8'`, the fix BoostAfterBoost already
+  took. It makes the `irc` library `require('node-icu-charset-detector')` on every
+  message; removing it means one fewer native module in the image. It was silent here
+  only because `debug: false`.
+- Deleted stale launchers: `start-znc.sh` (byte-identical in all three bot repos, all
+  writing the same pidfile), `start-with-restart.sh` (`cd /home/server/bots/LIT_Bot`),
+  and `check-bot.sh`, `setup-aliases.sh`, `monitor-boostbot.command` (all pointing at
+  `/Users/chad-mini/Vibe/BoostBot` on a long-gone laptop).
+- Two `LIT_BOT_NSEC` **private keys** were committed in cleartext in this file, in the
+  example command lines. They have been removed. Removing them here does **not**
+  remove them from git history, so treat both as exposed. Rotating a Nostr key means
+  a new npub and a lost follower graph, so that is a deliberate decision, not a
+  cleanup — but these keys should be considered public until it happens.
+
+**Cutover note:** copy `rss-state.json` from the old host into `/opt/bots/lit-data/`
+*before* the first non-test start, or the bot reposts its whole backlog. Sequence the
+nick carefully too: stop the old LIT_Bot before ZNC claims the `LIT_Bot` nick, or let
+NickServ GHOST reclaim it (`IRC_NICKSERV_PASSWORD`).
+
+**Rollback:** `ecosystem.config.cjs` is deliberately left in place, so the old host
+can take this bot back with `pm2 start ecosystem.config.cjs` once `IRC_SERVER` points
+back at ZeroNode directly.

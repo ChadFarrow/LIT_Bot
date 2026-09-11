@@ -44,7 +44,7 @@ const stats = {
 // IRC Configuration
 logger.info('Loading IRC config, IRC_CHANNELS from env:', process.env.IRC_CHANNELS);
 const ircConfig = {
-  server: process.env.IRC_SERVER || 'irc.libera.chat',
+  server: process.env.IRC_SERVER || 'irc.zeronode.net',
   port: parseInt(process.env.IRC_PORT) || 6667,
   secure: process.env.IRC_SECURE === 'true',
   nickname: process.env.IRC_NICKNAME || 'LITBot',
@@ -330,7 +330,11 @@ class MastodonRSSMonitor {
   constructor() {
     this.parser = new Parser();
     this.bot = createLITBot();
-    this.stateFile = join(__dirname, 'rss-state.json');
+    // STATE_DIR is a bind-mounted volume in the container (/data), so the dedupe
+    // record survives image rebuilds and container recreation. Losing it makes the
+    // bot repost every live notification it has ever seen. Defaults to __dirname so
+    // running straight from a checkout is unchanged.
+    this.stateFile = join(process.env.STATE_DIR || __dirname, 'rss-state.json');
     this.processedPosts = this.loadProcessedPosts();
     this.rssUrl = 'https://podcastindex.social/@PodcastsLive.rss';
     this.pollInterval = 60000; // 1 minute
@@ -801,7 +805,7 @@ app.post('/api/reboot', (req, res) => {
 });
 
 // Start the server and PodPing watcher
-const PORT = process.env.PORT || 3336;
+const PORT = process.env.PORT || 3334;
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`LIT Bot started`, { port: PORT });
   logger.info(`Health check: http://localhost:${PORT}/health`);
