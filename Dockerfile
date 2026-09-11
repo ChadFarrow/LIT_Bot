@@ -27,6 +27,13 @@ RUN mkdir -p /data && chown node:node /data
 VOLUME ["/data"]
 # Drop root. node:20 ships a `node` user at uid 1000, matching the uid the rest of
 # this box's containers run as.
+# The app writes its log file into the working directory, but WORKDIR created
+# /app as root and COPY leaves it root-owned -- so as `node` every single log
+# line fails with EACCES and prints a caught stack trace instead. Noise that
+# buries real errors. stdout logging (what docker captures) is unaffected either
+# way; this just stops the file writes failing.
+RUN chown -R node:node /app
+
 USER node
 EXPOSE 3334
 CMD ["npx", "tsx", "lit-bot.js"]
