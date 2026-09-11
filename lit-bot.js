@@ -120,16 +120,22 @@ class LITBot {
         logger.info(`Successfully published to ${relayUrl}`);
         stats.relayStats[relayUrl].success++;
         stats.successfulPosts++;
+        return true;
       } catch (error) {
         logger.error(`Failed to publish to ${relayUrl}`, { error: error?.message || error });
         stats.relayStats[relayUrl].failed++;
         stats.failedPosts++;
+        return false;
       }
     });
 
-    const results = await Promise.allSettled(publishPromises);
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    // Count the outcome, not the promise state. These functions catch their own
+    // errors, so every promise fulfills whatever happens upstream -- filtering on
+    // 'rejected' made `failed` structurally always 0 and reported a total outage
+    // as a clean sweep. Nothing rejects, so Promise.all is safe here.
+    const results = await Promise.all(publishPromises);
+    const successful = results.filter(Boolean).length;
+    const failed = results.length - successful;
     
     logger.info(`Publish results: ${successful} successful, ${failed} failed out of ${this.relays.length} relays`);
   }
