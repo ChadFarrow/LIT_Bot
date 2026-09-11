@@ -32,7 +32,7 @@
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
     "irc": "^0.5.2",
-    "nostr-tools": "^2.7.0",
+    "nostr-tools": "^2.25.2",
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
