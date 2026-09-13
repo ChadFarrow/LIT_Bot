@@ -1,5 +1,10 @@
 # LIT_Bot - Live Podcast Notifications
 
+> **Archived 2026-09-13 — this code moved.** It now lives in
+> [ChadFarrow/thelounge-candr](https://github.com/ChadFarrow/thelounge-candr) under
+> `bots/src/lit-bot`, and is built and deployed from there. Make changes there, not here.
+> This repository is kept read-only for its history.
+
 LIT_Bot monitors PodPing events on the Hive blockchain and automatically posts live podcast notifications to Nostr when shows go live.
 
 ## Features
